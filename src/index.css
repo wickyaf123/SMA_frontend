@@ -1,0 +1,181 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SMA Pipeline Dashboard - Clean Professional Design System */
+
+@layer base {
+  :root {
+    /* Core backgrounds - clean whites and light grays */
+    --background: 0 0% 98%;
+    --foreground: 220 20% 15%;
+
+    /* Cards and surfaces */
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 15%;
+
+    /* Primary - Professional teal/cyan */
+    --primary: 190 70% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Soft gray-blue */
+    --secondary: 210 25% 95%;
+    --secondary-foreground: 220 20% 25%;
+
+    /* Muted surfaces */
+    --muted: 210 20% 96%;
+    --muted-foreground: 220 10% 50%;
+
+    /* Accent - Lighter teal */
+    --accent: 190 60% 95%;
+    --accent-foreground: 190 70% 35%;
+
+    /* Status colors */
+    --success: 152 65% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 95% 55%;
+    --warning-foreground: 0 0% 100%;
+    
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --info: 210 85% 55%;
+    --info-foreground: 0 0% 100%;
+
+    /* Borders */
+    --border: 210 20% 90%;
+    --input: 210 20% 90%;
+    --ring: 190 70% 45%;
+
+    --radius: 0.75rem;
+
+    /* Canvas/Pipeline area */
+    --canvas: 210 25% 97%;
+    --canvas-dot: 210 20% 85%;
+    --node-connector: 210 25% 80%;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 15% 40%;
+    --sidebar-primary: 190 70% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 190 60% 95%;
+    --sidebar-accent-foreground: 190 70% 35%;
+    --sidebar-border: 210 20% 92%;
+    --sidebar-ring: 190 70% 45%;
+
+    /* Pipeline node colors */
+    --node-ingestion: 210 85% 55%;
+    --node-validation: 280 65% 55%;
+    --node-outreach: 190 70% 45%;
+    --node-reply: 38 95% 55%;
+    --node-crm: 152 65% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer components {
+  /* Canvas dotted background */
+  .canvas-grid {
+    background-image: radial-gradient(circle, hsl(var(--canvas-dot)) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-color: hsl(var(--canvas));
+  }
+
+  /* Pipeline node base styles */
+  .pipeline-node {
+    @apply relative bg-card border border-border rounded-xl p-4 shadow-sm transition-all duration-200;
+    @apply hover:shadow-md hover:border-primary/30;
+  }
+
+  .pipeline-node.active {
+    @apply ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+
+  /* Connector lines */
+  .connector-line {
+    @apply bg-node-connector;
+  }
+
+  .connector-dot {
+    @apply w-2 h-2 rounded-full bg-primary;
+  }
+
+  /* Status badge styles */
+  .status-badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-badge.success {
+    @apply bg-success/15 text-success;
+  }
+
+  .status-badge.warning {
+    @apply bg-warning/15 text-warning;
+  }
+
+  .status-badge.error {
+    @apply bg-destructive/15 text-destructive;
+  }
+
+  .status-badge.info {
+    @apply bg-info/15 text-info;
+  }
+
+  .status-badge.pending {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  /* Sidebar navigation item */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors;
+    @apply text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
+  }
+
+  .nav-item.active {
+    @apply bg-sidebar-accent text-sidebar-primary font-semibold;
+  }
+
+  /* Smooth animations */
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-pulse-soft {
+    animation: pulseSoft 2s ease-in-out infinite;
+  }
+
+  @keyframes pulseSoft {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+}
