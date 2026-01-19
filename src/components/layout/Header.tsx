@@ -40,7 +40,7 @@ export const Header = ({ title, subtitle, isWebSocketConnected }: HeaderProps) =
             {isWebSocketConnected ? (
               <>
                 <Wifi className="w-3 h-3" />
-                <span>Live</span>
+                <span>System Live</span>
               </>
             ) : (
               <>
@@ -66,9 +66,9 @@ export const Header = ({ title, subtitle, isWebSocketConnected }: HeaderProps) =
         {/* User */}
         <button className="flex items-center gap-2 pl-4 border-l border-border">
           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <span className="text-sm font-medium text-primary">JD</span>
+            <span className="text-sm font-medium text-primary">JL</span>
           </div>
-          <span className="text-sm font-medium">John Doe</span>
+          <span className="text-sm font-medium">James Louis</span>
           <ChevronDown className="w-4 h-4 text-muted-foreground" />
         </button>
       </div>
