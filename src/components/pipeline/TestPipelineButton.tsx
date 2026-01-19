@@ -59,7 +59,7 @@ export const TestPipelineButton = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('apiKey') || ''}`,
+            'Authorization': `Bearer ${import.meta.env.VITE_API_KEY}`,
           },
           body: JSON.stringify({ 
             perPage: 5, 

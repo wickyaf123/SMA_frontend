@@ -117,9 +117,9 @@ const outreachChannels = [
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Pipeline Canvas */}
-        <div className="flex-1 canvas-grid overflow-auto p-8">
+    <div className="flex flex-1 overflow-hidden">
+      {/* Pipeline Canvas */}
+      <div className="flex-1 canvas-grid overflow-auto p-8">
         <div className="min-h-full flex flex-col items-center py-8">
           {/* Stage Label */}
           <div className="mb-4">
@@ -236,13 +236,13 @@ const outreachChannels = [
         </div>
       </div>
 
-        {/* Detail Panel */}
-        {selectedNode && (
-          <NodeDetailPanel 
-            node={selectedNode} 
-            onClose={() => setSelectedNode(null)} 
-          />
-        )}
+      {/* Detail Panel */}
+      {selectedNode && (
+        <NodeDetailPanel 
+          node={selectedNode} 
+          onClose={() => setSelectedNode(null)} 
+        />
+      )}
       </div>
     </div>
   );
