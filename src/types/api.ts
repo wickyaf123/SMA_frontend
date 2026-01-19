@@ -116,6 +116,12 @@ export interface Contact {
   createdAt: string;
   updatedAt: string;
   lastContactedAt?: string | null;
+  
+  // Included from expanded query
+  campaignEnrollments?: CampaignEnrollment[];
+  _count?: {
+    replies: number;
+  };
 }
 
 export interface Campaign {
@@ -643,5 +649,78 @@ export const sourceLabels: Record<string, string> = {
   google_maps: 'Google Maps',
   hunter: 'Hunter.io',
   csv: 'CSV Import',
+  scraper: 'Scraper',
 };
+
+// ==================== CAMPAIGN ROUTING ====================
+
+export type RoutingMatchMode = 'ALL' | 'ANY';
+
+export type RoutingFallbackBehavior = 'default_campaign' | 'skip';
+
+export interface CampaignRoutingRule {
+  id: string;
+  name: string;
+  description?: string | null;
+  priority: number;
+  isActive: boolean;
+  matchMode: RoutingMatchMode;
+  sourceFilter: string[];
+  industryFilter: string[];
+  stateFilter: string[];
+  countryFilter: string[];
+  tagsFilter: string[];
+  employeesMinFilter?: number | null;
+  employeesMaxFilter?: number | null;
+  campaignId: string;
+  campaign?: Campaign;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateRoutingRuleInput {
+  name: string;
+  description?: string;
+  priority?: number;
+  isActive?: boolean;
+  matchMode?: RoutingMatchMode;
+  sourceFilter?: string[];
+  industryFilter?: string[];
+  stateFilter?: string[];
+  countryFilter?: string[];
+  tagsFilter?: string[];
+  employeesMinFilter?: number | null;
+  employeesMaxFilter?: number | null;
+  campaignId: string;
+}
+
+export interface UpdateRoutingRuleInput {
+  name?: string;
+  description?: string | null;
+  priority?: number;
+  isActive?: boolean;
+  matchMode?: RoutingMatchMode;
+  sourceFilter?: string[];
+  industryFilter?: string[];
+  stateFilter?: string[];
+  countryFilter?: string[];
+  tagsFilter?: string[];
+  employeesMinFilter?: number | null;
+  employeesMaxFilter?: number | null;
+  campaignId?: string;
+}
+
+export interface RoutingFilterOptions {
+  sources: string[];
+  industries: string[];
+  states: string[];
+  countries: string[];
+  tags: string[];
+}
+
+export interface RoutingTestResult {
+  campaign: Campaign | null;
+  matchedRule: CampaignRoutingRule | null;
+  fallbackUsed: boolean;
+}
 

@@ -8,16 +8,19 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { 
   Settings as SettingsIcon, Clock, 
   Save, Plus, Trash2, Play, Pause, RefreshCw,
   Linkedin, Zap, AlertCircle, Loader2, Moon, Sun,
   MessageSquare, Check, Edit2, Star, X, Search, MapPin, Building2, Users, DollarSign,
-  Power, Mail, Phone, StopCircle, PlayCircle, AlertTriangle, ShieldAlert
+  Power, Mail, Phone, StopCircle, PlayCircle, AlertTriangle, ShieldAlert,
+  Route, ArrowUpDown, GripVertical, TestTube, Filter
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useSettings, useToggleLinkedIn, useTemplates, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useSetDefaultTemplate, useScraperSettings, useUpdateApifySettings, useUpdateApolloSettings, usePipelineControls, useUpdatePipelineControls, useEmergencyStop, useResumePipeline, useScheduleTemplates, useScheduleSettings, useApplyScheduleTemplate, useUpdateSchedules, useTriggerScheduledJob } from "@/hooks/useApi";
-import type { MessageTemplate, ApifyScraperSettings, ApolloScraperSettings, PipelineControlSettings, ScheduleTemplate, ScheduleSettings } from "@/types/api";
+import { useSettings, useToggleLinkedIn, useTemplates, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useSetDefaultTemplate, useScraperSettings, useUpdateApifySettings, useUpdateApolloSettings, usePipelineControls, useUpdatePipelineControls, useEmergencyStop, useResumePipeline, useScheduleTemplates, useScheduleSettings, useApplyScheduleTemplate, useUpdateSchedules, useTriggerScheduledJob, useRoutingRules, useRoutingFilterOptions, useCreateRoutingRule, useUpdateRoutingRule, useDeleteRoutingRule, useReorderRoutingRules, useTestRouting, useCampaigns, useSyncFromInstantly } from "@/hooks/useApi";
+import type { MessageTemplate, ApifyScraperSettings, ApolloScraperSettings, PipelineControlSettings, ScheduleTemplate, ScheduleSettings, CampaignRoutingRule, CreateRoutingRuleInput, UpdateRoutingRuleInput, RoutingMatchMode } from "@/types/api";
 
 // Job definitions - these map to pipeline control settings
 const jobDefinitions = [
@@ -57,6 +60,631 @@ const jobDefinitions = [
     settingKey: "enrollJobEnabled" as const,
   }
 ];
+
+// ==================== ROUTING RULES TAB COMPONENT ====================
+
+const RoutingRulesTab = () => {
+  const { toast } = useToast();
+  
+  // API hooks
+  const { data: rulesData, isLoading: rulesLoading } = useRoutingRules();
+  const { data: filterOptionsData } = useRoutingFilterOptions();
+  const { data: campaignsData, refetch: refetchCampaigns } = useCampaigns({ channel: 'EMAIL' });
+  
+  const createRule = useCreateRoutingRule();
+  const updateRule = useUpdateRoutingRule();
+  const deleteRule = useDeleteRoutingRule();
+  const reorderRules = useReorderRoutingRules();
+  const testRouting = useTestRouting();
+  const syncFromInstantly = useSyncFromInstantly();
+  
+  const rules = rulesData?.data || [];
+  const filterOptions = filterOptionsData?.data;
+  const campaigns = campaignsData?.data || [];
+  
+  // Track if we've already synced this session
+  const [hasSynced, setHasSynced] = useState(false);
+  
+  // Local state
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingRule, setEditingRule] = useState<CampaignRoutingRule | null>(null);
+  const [testContactId, setTestContactId] = useState('');
+  
+  // Form state for create/edit
+  const [formData, setFormData] = useState<CreateRoutingRuleInput>({
+    name: '',
+    description: '',
+    priority: 50,
+    isActive: true,
+    matchMode: 'ALL',
+    sourceFilter: [],
+    industryFilter: [],
+    stateFilter: [],
+    countryFilter: [],
+    tagsFilter: [],
+    employeesMinFilter: null,
+    employeesMaxFilter: null,
+    campaignId: '',
+  });
+  
+  // Auto-sync campaigns from Instantly when dialog opens (once per session)
+  const syncCampaignsIfNeeded = async () => {
+    if (!hasSynced && !syncFromInstantly.isPending) {
+      try {
+        await syncFromInstantly.mutateAsync();
+        setHasSynced(true);
+        // Refetch campaigns after sync
+        await refetchCampaigns();
+      } catch (error) {
+        // Error is already handled by the hook toast
+        console.error('Failed to sync campaigns:', error);
+      }
+    }
+  };
+  
+  // Reset form when dialog opens/closes
+  const openCreateDialog = () => {
+    // Sync campaigns when opening the dialog
+    syncCampaignsIfNeeded();
+    
+    setFormData({
+      name: '',
+      description: '',
+      priority: 50,
+      isActive: true,
+      matchMode: 'ALL',
+      sourceFilter: [],
+      industryFilter: [],
+      stateFilter: [],
+      countryFilter: [],
+      tagsFilter: [],
+      employeesMinFilter: null,
+      employeesMaxFilter: null,
+      campaignId: campaigns[0]?.id || '',
+    });
+    setShowCreateDialog(true);
+  };
+  
+  const openEditDialog = (rule: CampaignRoutingRule) => {
+    // Sync campaigns when opening the dialog
+    syncCampaignsIfNeeded();
+    
+    setFormData({
+      name: rule.name,
+      description: rule.description || '',
+      priority: rule.priority,
+      isActive: rule.isActive,
+      matchMode: rule.matchMode,
+      sourceFilter: rule.sourceFilter,
+      industryFilter: rule.industryFilter,
+      stateFilter: rule.stateFilter,
+      countryFilter: rule.countryFilter,
+      tagsFilter: rule.tagsFilter,
+      employeesMinFilter: rule.employeesMinFilter,
+      employeesMaxFilter: rule.employeesMaxFilter,
+      campaignId: rule.campaignId,
+    });
+    setEditingRule(rule);
+  };
+  
+  // Manual sync handler
+  const handleManualSync = async () => {
+    try {
+      await syncFromInstantly.mutateAsync();
+      setHasSynced(true);
+      // Refetch campaigns after sync
+      await refetchCampaigns();
+    } catch (error) {
+      // Error is already handled by the hook toast
+      console.error('Failed to sync campaigns:', error);
+    }
+  };
+  
+  const handleCreateRule = async () => {
+    if (!formData.name || !formData.campaignId) {
+      toast({
+        title: 'Missing fields',
+        description: 'Name and target campaign are required',
+        variant: 'destructive',
+      });
+      return;
+    }
+    await createRule.mutateAsync(formData);
+    setShowCreateDialog(false);
+  };
+  
+  const handleUpdateRule = async () => {
+    if (!editingRule) return;
+    await updateRule.mutateAsync({ id: editingRule.id, data: formData });
+    setEditingRule(null);
+  };
+  
+  const handleDeleteRule = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this routing rule?')) return;
+    await deleteRule.mutateAsync(id);
+  };
+  
+  const handleTestRouting = async () => {
+    if (!testContactId) {
+      toast({
+        title: 'Missing contact ID',
+        description: 'Enter a contact ID to test routing',
+        variant: 'destructive',
+      });
+      return;
+    }
+    await testRouting.mutateAsync(testContactId);
+  };
+  
+  const moveRule = async (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= rules.length) return;
+    
+    const newOrder = [...rules];
+    [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
+    await reorderRules.mutateAsync(newOrder.map(r => r.id));
+  };
+  
+  // Helper to format filter summary
+  const getFilterSummary = (rule: CampaignRoutingRule): string => {
+    const parts: string[] = [];
+    if (rule.sourceFilter.length > 0) parts.push(`Source: ${rule.sourceFilter.join(', ')}`);
+    if (rule.industryFilter.length > 0) parts.push(`Industry: ${rule.industryFilter.join(', ')}`);
+    if (rule.stateFilter.length > 0) parts.push(`State: ${rule.stateFilter.join(', ')}`);
+    if (rule.countryFilter.length > 0) parts.push(`Country: ${rule.countryFilter.join(', ')}`);
+    if (rule.tagsFilter.length > 0) parts.push(`Tags: ${rule.tagsFilter.join(', ')}`);
+    if (rule.employeesMinFilter) parts.push(`Min employees: ${rule.employeesMinFilter}`);
+    if (rule.employeesMaxFilter) parts.push(`Max employees: ${rule.employeesMaxFilter}`);
+    return parts.length > 0 ? parts.join(' • ') : 'No filters (matches all)';
+  };
+  
+  // Multi-select helper component
+  const MultiSelect = ({ 
+    label, 
+    options, 
+    selected, 
+    onChange 
+  }: { 
+    label: string; 
+    options: string[]; 
+    selected: string[]; 
+    onChange: (values: string[]) => void;
+  }) => (
+    <div className="space-y-2">
+      <Label className="text-sm">{label}</Label>
+      <div className="flex flex-wrap gap-2 p-2 border rounded-lg bg-muted/30 min-h-[40px]">
+        {selected.map(value => (
+          <Badge key={value} variant="secondary" className="gap-1">
+            {value}
+            <X 
+              className="w-3 h-3 cursor-pointer" 
+              onClick={() => onChange(selected.filter(v => v !== value))}
+            />
+          </Badge>
+        ))}
+        <Select
+          value=""
+          onValueChange={(value) => {
+            if (value && !selected.includes(value)) {
+              onChange([...selected, value]);
+            }
+          }}
+        >
+          <SelectTrigger className="w-auto h-6 border-0 bg-transparent text-xs">
+            <Plus className="w-3 h-3" />
+          </SelectTrigger>
+          <SelectContent>
+            {options.filter(o => !selected.includes(o)).map(option => (
+              <SelectItem key={option} value={option}>{option}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+  
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <Card className="bg-card/50 border-border">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Route className="w-5 h-5 text-primary" />
+                Campaign Routing Rules
+              </CardTitle>
+              <CardDescription>
+                Route leads to different Instantly campaigns based on source, location, industry, and more
+              </CardDescription>
+            </div>
+            <Button onClick={openCreateDialog} className="gap-2">
+              <Plus className="w-4 h-4" />
+              New Rule
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Info banner */}
+          <div className="p-4 bg-info/10 border border-info/20 rounded-lg mb-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-info mt-0.5" />
+              <div>
+                <p className="font-medium text-foreground">How Routing Works</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Rules are evaluated in order of priority (highest first). The first matching rule determines 
+                  which campaign a lead is enrolled in. If no rule matches, the fallback behavior is applied.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Rules list */}
+          {rulesLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : rules.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Route className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium">No routing rules yet</p>
+              <p className="text-sm">Create your first rule to start routing leads to different campaigns</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {rules.map((rule, index) => (
+                <div 
+                  key={rule.id}
+                  className={`p-4 rounded-lg border transition-colors ${
+                    rule.isActive 
+                      ? 'bg-muted/30 border-border hover:bg-muted/50' 
+                      : 'bg-muted/10 border-border/50 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Drag handle / priority controls */}
+                    <div className="flex flex-col items-center gap-1 pt-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => moveRule(index, 'up')}
+                        disabled={index === 0 || reorderRules.isPending}
+                      >
+                        <ArrowUpDown className="w-3 h-3 rotate-180" />
+                      </Button>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        #{index + 1}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => moveRule(index, 'down')}
+                        disabled={index === rules.length - 1 || reorderRules.isPending}
+                      >
+                        <ArrowUpDown className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    
+                    {/* Rule content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-semibold">{rule.name}</h4>
+                        <Badge variant={rule.matchMode === 'ALL' ? 'default' : 'outline'} className="text-xs">
+                          {rule.matchMode === 'ALL' ? 'Match ALL' : 'Match ANY'}
+                        </Badge>
+                        {!rule.isActive && (
+                          <Badge variant="secondary" className="text-xs">Disabled</Badge>
+                        )}
+                      </div>
+                      {rule.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{rule.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Filter className="w-3 h-3" />
+                        <span className="truncate">{getFilterSummary(rule)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Mail className="w-3 h-3 text-primary" />
+                        <span className="text-sm font-medium">
+                          → {rule.campaign?.name || 'Unknown Campaign'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={rule.isActive}
+                        onCheckedChange={(checked) => 
+                          updateRule.mutate({ id: rule.id, data: { isActive: checked } })
+                        }
+                        disabled={updateRule.isPending}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditDialog(rule)}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteRule(rule.id)}
+                        disabled={deleteRule.isPending}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Test Routing */}
+      <Card className="bg-card/50 border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TestTube className="w-5 h-5 text-warning" />
+            Test Routing
+          </CardTitle>
+          <CardDescription>
+            Enter a contact ID to see which campaign they would be routed to
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            <Input
+              placeholder="Enter contact ID..."
+              value={testContactId}
+              onChange={(e) => setTestContactId(e.target.value)}
+              className="flex-1"
+            />
+            <Button 
+              onClick={handleTestRouting}
+              disabled={testRouting.isPending || !testContactId}
+            >
+              {testRouting.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <TestTube className="w-4 h-4 mr-2" />
+              )}
+              Test
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Create/Edit Dialog */}
+      <Dialog open={showCreateDialog || !!editingRule} onOpenChange={(open) => {
+        if (!open) {
+          setShowCreateDialog(false);
+          setEditingRule(null);
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingRule ? 'Edit Routing Rule' : 'Create Routing Rule'}
+            </DialogTitle>
+            <DialogDescription>
+              Define filters to route leads to a specific campaign
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Basic info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="ruleName">Rule Name *</Label>
+                <Input
+                  id="ruleName"
+                  placeholder="e.g., Apollo High-Value"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ruleCampaign">Target Campaign *</Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={formData.campaignId}
+                    onValueChange={(value) => setFormData({ ...formData, campaignId: value })}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select campaign" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {campaigns.length === 0 ? (
+                        <div className="py-4 px-2 text-center text-sm text-muted-foreground">
+                          No campaigns found. Click sync to load from Instantly.
+                        </div>
+                      ) : (
+                        campaigns.map(campaign => (
+                          <SelectItem key={campaign.id} value={campaign.id}>
+                            <span className="flex items-center gap-2">
+                              {campaign.name}
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                campaign.status === 'ACTIVE' 
+                                  ? 'bg-emerald-500/20 text-emerald-400' 
+                                  : 'bg-muted text-muted-foreground'
+                              }`}>
+                                {campaign.status}
+                              </span>
+                            </span>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleManualSync}
+                    disabled={syncFromInstantly.isPending}
+                    title="Sync campaigns from Instantly"
+                  >
+                    {syncFromInstantly.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                {syncFromInstantly.isPending && (
+                  <p className="text-xs text-muted-foreground">Syncing campaigns from Instantly...</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="ruleDescription">Description</Label>
+              <Input
+                id="ruleDescription"
+                placeholder="When to use this rule..."
+                value={formData.description || ''}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
+            
+            {/* Match mode */}
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border">
+              <div>
+                <p className="font-medium">Match Mode</p>
+                <p className="text-sm text-muted-foreground">
+                  {formData.matchMode === 'ALL' 
+                    ? 'ALL filters must match (AND logic)' 
+                    : 'ANY filter can match (OR logic)'}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={formData.matchMode === 'ALL' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, matchMode: 'ALL' })}
+                >
+                  ALL
+                </Button>
+                <Button
+                  variant={formData.matchMode === 'ANY' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, matchMode: 'ANY' })}
+                >
+                  ANY
+                </Button>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            {/* Filters */}
+            <div className="space-y-4">
+              <h4 className="font-medium flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Filters
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <MultiSelect
+                  label="Lead Source"
+                  options={filterOptions?.sources || ['apollo', 'scraper', 'csv', 'manual']}
+                  selected={formData.sourceFilter || []}
+                  onChange={(values) => setFormData({ ...formData, sourceFilter: values })}
+                />
+                
+                <MultiSelect
+                  label="Industry"
+                  options={filterOptions?.industries || []}
+                  selected={formData.industryFilter || []}
+                  onChange={(values) => setFormData({ ...formData, industryFilter: values })}
+                />
+                
+                <MultiSelect
+                  label="State"
+                  options={filterOptions?.states || []}
+                  selected={formData.stateFilter || []}
+                  onChange={(values) => setFormData({ ...formData, stateFilter: values })}
+                />
+                
+                <MultiSelect
+                  label="Country"
+                  options={filterOptions?.countries || ['United States']}
+                  selected={formData.countryFilter || []}
+                  onChange={(values) => setFormData({ ...formData, countryFilter: values })}
+                />
+                
+                <MultiSelect
+                  label="Tags"
+                  options={filterOptions?.tags || []}
+                  selected={formData.tagsFilter || []}
+                  onChange={(values) => setFormData({ ...formData, tagsFilter: values })}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="employeesMin">Min Employees</Label>
+                  <Input
+                    id="employeesMin"
+                    type="number"
+                    placeholder="No minimum"
+                    value={formData.employeesMinFilter ?? ''}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      employeesMinFilter: e.target.value ? parseInt(e.target.value) : null 
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="employeesMax">Max Employees</Label>
+                  <Input
+                    id="employeesMax"
+                    type="number"
+                    placeholder="No maximum"
+                    value={formData.employeesMaxFilter ?? ''}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      employeesMaxFilter: e.target.value ? parseInt(e.target.value) : null 
+                    })}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowCreateDialog(false);
+              setEditingRule(null);
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={editingRule ? handleUpdateRule : handleCreateRule}
+              disabled={createRule.isPending || updateRule.isPending}
+            >
+              {(createRule.isPending || updateRule.isPending) ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              {editingRule ? 'Save Changes' : 'Create Rule'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+// ==================== MAIN SETTINGS COMPONENT ====================
 
 export const Settings = () => {
   const { toast } = useToast();
@@ -252,6 +880,10 @@ export const Settings = () => {
           <TabsTrigger value="pipeline" className="gap-2">
             <Power className="w-4 h-4" />
             Pipeline
+          </TabsTrigger>
+          <TabsTrigger value="routing" className="gap-2">
+            <Route className="w-4 h-4" />
+            Routing
           </TabsTrigger>
           <TabsTrigger value="system" className="gap-2">
             <SettingsIcon className="w-4 h-4" />
@@ -743,6 +1375,11 @@ export const Settings = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Routing Tab */}
+        <TabsContent value="routing">
+          <RoutingRulesTab />
         </TabsContent>
 
         {/* System Tab */}

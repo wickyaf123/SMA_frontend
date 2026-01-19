@@ -23,7 +23,11 @@ import {
   MessageSquare,
   Eye,
   Edit,
-  ExternalLink
+  ExternalLink,
+  Columns,
+  Clock,
+  BarChart3,
+  Reply,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,6 +37,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   Select,
@@ -88,15 +94,33 @@ import {
 type SortField = "fullName" | "company" | "status" | "createdAt";
 type SortDirection = "asc" | "desc";
 
+// Column visibility configuration
+type ColumnKey = "contact" | "company" | "validation" | "status" | "source" | "added" | "lastReply" | "campaign" | "dataQuality" | "lastContacted";
+
+const defaultColumnVisibility: Record<ColumnKey, boolean> = {
+  contact: true,
+  company: true,
+  validation: true,
+  status: true,
+  source: true,
+  added: true,
+  lastReply: true,
+  campaign: true,
+  dataQuality: true,
+  lastContacted: true,
+};
+
 export const Leads = () => {
   // UI State
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [replyFilter, setReplyFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [columnVisibility, setColumnVisibility] = useState<Record<ColumnKey, boolean>>(defaultColumnVisibility);
   const itemsPerPage = 10;
 
   // Modal states
@@ -138,6 +162,7 @@ export const Leads = () => {
   const { data: contactsData, isLoading, error } = useContacts({
     search: search || undefined,
     status: statusFilter !== "all" ? [statusFilter as ContactStatus] : undefined,
+    hasReplied: replyFilter === "all" ? undefined : replyFilter === "replied",
     page: currentPage,
     limit: itemsPerPage,
     sort: sortField,
@@ -376,10 +401,79 @@ export const Leads = () => {
               <SelectItem value="hunter">Hunter.io</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select value={replyFilter} onValueChange={(v) => { setReplyFilter(v); setCurrentPage(1); }}>
+            <SelectTrigger className="w-36 bg-card">
+              <Reply className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Replies" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Contacts</SelectItem>
+              <SelectItem value="replied">Has Replied</SelectItem>
+              <SelectItem value="not-replied">No Reply</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          {/* Column Visibility Toggle */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Columns className="w-4 h-4 mr-2" />
+                Columns
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={columnVisibility.lastReply}
+                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, lastReply: checked }))}
+              >
+                Last Reply
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={columnVisibility.campaign}
+                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, campaign: checked }))}
+              >
+                Campaign
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={columnVisibility.dataQuality}
+                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, dataQuality: checked }))}
+              >
+                Data Quality
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={columnVisibility.lastContacted}
+                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, lastContacted: checked }))}
+              >
+                Last Contacted
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={columnVisibility.validation}
+                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, validation: checked }))}
+              >
+                Validation
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={columnVisibility.source}
+                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, source: checked }))}
+              >
+                Source
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={columnVisibility.added}
+                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, added: checked }))}
+              >
+                Added Date
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export
@@ -1009,9 +1103,11 @@ export const Leads = () => {
                   <th className="p-4 text-left text-sm font-medium text-muted-foreground">
                     Company
                 </th>
-                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  Validation
-                </th>
+                {columnVisibility.validation && (
+                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                    Validation
+                  </th>
+                )}
                 <th className="p-4 text-left">
                   <button
                     onClick={() => handleSort("status")}
@@ -1021,18 +1117,42 @@ export const Leads = () => {
                     <SortIcon field="status" />
                   </button>
                 </th>
-                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  Source
-                </th>
-                <th className="p-4 text-left">
-                  <button
-                    onClick={() => handleSort("createdAt")}
-                    className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    Added
-                    <SortIcon field="createdAt" />
-                  </button>
-                </th>
+                {columnVisibility.lastReply && (
+                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                    Last Reply
+                  </th>
+                )}
+                {columnVisibility.campaign && (
+                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                    Campaign
+                  </th>
+                )}
+                {columnVisibility.dataQuality && (
+                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                    Data Quality
+                  </th>
+                )}
+                {columnVisibility.lastContacted && (
+                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                    Last Contacted
+                  </th>
+                )}
+                {columnVisibility.source && (
+                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                    Source
+                  </th>
+                )}
+                {columnVisibility.added && (
+                  <th className="p-4 text-left">
+                    <button
+                      onClick={() => handleSort("createdAt")}
+                      className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Added
+                      <SortIcon field="createdAt" />
+                    </button>
+                  </th>
+                )}
                 <th className="p-4 w-12"></th>
               </tr>
             </thead>
@@ -1090,34 +1210,42 @@ export const Leads = () => {
                         )}
                     </div>
                   </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <div className={cn(
-                        "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium",
-                          contact.emailValidationStatus === "VALID" 
-                            ? "bg-success/15 text-success" 
-                            : contact.emailValidationStatus === "INVALID"
-                              ? "bg-destructive/15 text-destructive"
-                              : "bg-muted text-muted-foreground"
-                      )}>
-                          {contact.emailValidationStatus === "VALID" ? <Check className="w-3 h-3" /> : 
-                           contact.emailValidationStatus === "INVALID" ? <X className="w-3 h-3" /> : null}
-                        Email
+                  {columnVisibility.validation && (
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium",
+                            contact.emailValidationStatus === "VALID" 
+                              ? "bg-success/15 text-success" 
+                              : contact.emailValidationStatus === "INVALID"
+                                ? "bg-destructive/15 text-destructive"
+                                : contact.emailValidationStatus === "PENDING"
+                                  ? "bg-amber-500/15 text-amber-600"
+                                  : "bg-muted text-muted-foreground"
+                        )}>
+                            {contact.emailValidationStatus === "VALID" ? <Check className="w-3 h-3" /> : 
+                             contact.emailValidationStatus === "INVALID" ? <X className="w-3 h-3" /> :
+                             contact.emailValidationStatus === "PENDING" ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                          Email
+                        </div>
+                        <div className={cn(
+                          "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium",
+                            contact.phoneValidationStatus === "VALID_MOBILE" 
+                              ? "bg-success/15 text-success" 
+                              : contact.phoneValidationStatus === "INVALID"
+                                ? "bg-destructive/15 text-destructive"
+                                : contact.phoneValidationStatus === "PENDING"
+                                  ? "bg-amber-500/15 text-amber-600"
+                                  : "bg-muted text-muted-foreground"
+                        )}>
+                            {contact.phoneValidationStatus === "VALID_MOBILE" ? <Check className="w-3 h-3" /> : 
+                             contact.phoneValidationStatus === "INVALID" ? <X className="w-3 h-3" /> :
+                             contact.phoneValidationStatus === "PENDING" ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                          Phone
+                        </div>
                       </div>
-                      <div className={cn(
-                        "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium",
-                          contact.phoneValidationStatus === "VALID_MOBILE" 
-                            ? "bg-success/15 text-success" 
-                            : contact.phoneValidationStatus === "INVALID"
-                              ? "bg-destructive/15 text-destructive"
-                              : "bg-muted text-muted-foreground"
-                      )}>
-                          {contact.phoneValidationStatus === "VALID_MOBILE" ? <Check className="w-3 h-3" /> : 
-                           contact.phoneValidationStatus === "INVALID" ? <X className="w-3 h-3" /> : null}
-                        Phone
-                      </div>
-                    </div>
-                  </td>
+                    </td>
+                  )}
                   <td className="p-4">
                     <span className={cn(
                       "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
@@ -1127,16 +1255,102 @@ export const Leads = () => {
                         {contact.hasReplied && contact.repliedChannel === 'SMS' && <Phone className="w-3 h-3" />}
                         {contact.hasReplied && contact.repliedChannel === 'LINKEDIN' && <ExternalLink className="w-3 h-3" />}
                         {contactStatusLabels[contact.status]}
+                        {contact._count && contact._count.replies > 1 && (
+                          <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded-full text-[10px]">
+                            {contact._count.replies}
+                          </span>
+                        )}
                     </span>
                   </td>
-                  <td className="p-4">
-                      <span className="text-sm text-muted-foreground">
-                        {sourceLabels[contact.source || ""] || contact.source || "—"}
-                    </span>
-                  </td>
-                  <td className="p-4 text-sm text-muted-foreground">
-                      {new Date(contact.createdAt).toLocaleDateString()}
-                  </td>
+                  {columnVisibility.lastReply && (
+                    <td className="p-4">
+                      {contact.hasReplied ? (
+                        <div className="flex items-center gap-2 text-sm">
+                          <div className={cn(
+                            "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium",
+                            "bg-node-reply/15 text-node-reply"
+                          )}>
+                            {contact.repliedChannel === 'EMAIL' && <Mail className="w-3 h-3" />}
+                            {contact.repliedChannel === 'SMS' && <Phone className="w-3 h-3" />}
+                            {contact.repliedChannel === 'LINKEDIN' && <ExternalLink className="w-3 h-3" />}
+                            {contact.repliedChannel}
+                          </div>
+                          <span className="text-muted-foreground text-xs">
+                            {contact.repliedAt ? new Date(contact.repliedAt).toLocaleDateString() : ""}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  )}
+                  {columnVisibility.campaign && (
+                    <td className="p-4">
+                      {contact.campaignEnrollments && contact.campaignEnrollments.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 max-w-[200px]">
+                          {contact.campaignEnrollments.map((enrollment) => (
+                            <span 
+                              key={enrollment.id} 
+                              className={cn(
+                                "px-2 py-0.5 rounded text-xs font-medium truncate max-w-[120px]",
+                                enrollment.campaign?.channel === 'EMAIL' 
+                                  ? "bg-blue-500/15 text-blue-500"
+                                  : enrollment.campaign?.channel === 'SMS'
+                                    ? "bg-emerald-500/15 text-emerald-500"
+                                    : "bg-primary/15 text-primary"
+                              )}
+                              title={enrollment.campaign?.name}
+                            >
+                              {enrollment.campaign?.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Not enrolled</span>
+                      )}
+                    </td>
+                  )}
+                  {columnVisibility.dataQuality && (
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={cn(
+                              "h-full rounded-full transition-all",
+                              contact.dataQuality >= 80 ? "bg-success" :
+                              contact.dataQuality >= 50 ? "bg-warning" : "bg-destructive"
+                            )}
+                            style={{ width: `${contact.dataQuality}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-muted-foreground w-8">{contact.dataQuality}%</span>
+                      </div>
+                    </td>
+                  )}
+                  {columnVisibility.lastContacted && (
+                    <td className="p-4">
+                      {contact.lastContactedAt ? (
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          {new Date(contact.lastContactedAt).toLocaleDateString()}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Never</span>
+                      )}
+                    </td>
+                  )}
+                  {columnVisibility.source && (
+                    <td className="p-4">
+                        <span className="text-sm text-muted-foreground">
+                          {sourceLabels[contact.source || ""] || contact.source || "—"}
+                      </span>
+                    </td>
+                  )}
+                  {columnVisibility.added && (
+                    <td className="p-4 text-sm text-muted-foreground">
+                        {new Date(contact.createdAt).toLocaleDateString()}
+                    </td>
+                  )}
                   <td className="p-4">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

@@ -7,6 +7,7 @@ import { Leads } from "@/components/leads/Leads";
 import { Campaigns } from "@/components/campaigns/Campaigns";
 import { Integrations } from "@/components/integrations/Integrations";
 import { Settings } from "@/components/settings/Settings";
+import { useDashboardRealtime } from "@/hooks/useWebSocket";
 
 const sectionConfig: Record<string, { title: string; subtitle: string }> = {
   overview: { title: "Overview", subtitle: "Dashboard with trends and channel performance" },
@@ -20,6 +21,9 @@ const sectionConfig: Record<string, { title: string; subtitle: string }> = {
 const Index = () => {
   const [activeSection, setActiveSection] = useState("pipeline");
   const currentSection = sectionConfig[activeSection];
+  
+  // Enable real-time WebSocket notifications for replies, jobs, and system alerts
+  const { isConnected, error: wsError } = useDashboardRealtime();
 
   const renderContent = () => {
     switch (activeSection) {
@@ -56,7 +60,8 @@ const Index = () => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header 
           title={currentSection.title} 
-          subtitle={currentSection.subtitle} 
+          subtitle={currentSection.subtitle}
+          isWebSocketConnected={isConnected}
         />
         <main className="flex-1 flex overflow-hidden">
           {renderContent()}

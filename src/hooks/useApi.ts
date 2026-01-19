@@ -40,6 +40,11 @@ import type {
   ScheduleTemplate,
   ScheduleSettings,
   UpdateSchedulesInput,
+  CampaignRoutingRule,
+  CreateRoutingRuleInput,
+  UpdateRoutingRuleInput,
+  RoutingFilterOptions,
+  RoutingTestResult,
 } from '@/types/api';
 
 // ==================== QUERY KEYS ====================
@@ -68,6 +73,8 @@ export const queryKeys = {
     enrollments: (id: string, params?: { page?: number; limit?: number; status?: string }) => 
       ['campaigns', 'enrollments', id, params] as const,
     outreachStats: ['campaigns', 'outreach-stats'] as const,
+    routingRules: ['campaigns', 'routing-rules'] as const,
+    routingFilterOptions: ['campaigns', 'routing-filter-options'] as const,
   },
   
   settings: ['settings'] as const,
@@ -139,8 +146,16 @@ export function useCreateContact() {
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
       toast({
         title: 'Contact created',
-        description: 'The contact has been added successfully.',
+        description: 'Email & phone validation running in background. Status will update automatically.',
       });
+      
+      // Refetch contacts after a delay to show updated validation status
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+      }, 5000);
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+      }, 15000);
     },
     onError: (error: ApiError) => {
       toast({
@@ -478,6 +493,30 @@ export function useOutreachStats() {
     queryFn: () => api.campaigns.outreachStats(),
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // Refresh every minute
+  });
+}
+
+export function useSyncFromInstantly() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: () => api.campaigns.syncFromInstantly(),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all });
+      const { created, updated } = response.data;
+      toast({
+        title: 'Campaigns synced from Instantly',
+        description: `Created: ${created}, Updated: ${updated}`,
+      });
+    },
+    onError: (error: ApiError) => {
+      toast({
+        title: 'Failed to sync campaigns',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
   });
 }
 
@@ -1127,6 +1166,152 @@ export function useSetDefaultTemplate() {
     onError: (error: ApiError) => {
       toast({
         title: 'Failed to set default',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// ==================== CAMPAIGN ROUTING RULES ====================
+
+export function useRoutingRules(params?: { isActive?: boolean; campaignId?: string }) {
+  return useQuery({
+    queryKey: queryKeys.campaigns.routingRules,
+    queryFn: () => api.campaigns.routingRules.list(params),
+    staleTime: 60000, // 1 minute
+  });
+}
+
+export function useRoutingFilterOptions() {
+  return useQuery({
+    queryKey: queryKeys.campaigns.routingFilterOptions,
+    queryFn: () => api.campaigns.routingRules.filterOptions(),
+    staleTime: 300000, // 5 minutes
+  });
+}
+
+export function useCreateRoutingRule() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: (data: CreateRoutingRuleInput) =>
+      api.campaigns.routingRules.create(data),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.routingRules });
+      toast({
+        title: 'Routing rule created',
+        description: response.message || 'Your routing rule has been saved',
+      });
+    },
+    onError: (error: ApiError) => {
+      toast({
+        title: 'Failed to create routing rule',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useUpdateRoutingRule() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateRoutingRuleInput }) =>
+      api.campaigns.routingRules.update(id, data),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.routingRules });
+      toast({
+        title: 'Routing rule updated',
+        description: response.message || 'Your changes have been saved',
+      });
+    },
+    onError: (error: ApiError) => {
+      toast({
+        title: 'Failed to update routing rule',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useDeleteRoutingRule() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: (id: string) => api.campaigns.routingRules.delete(id),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.routingRules });
+      toast({
+        title: 'Routing rule deleted',
+        description: response.message || 'The routing rule has been removed',
+      });
+    },
+    onError: (error: ApiError) => {
+      toast({
+        title: 'Failed to delete routing rule',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useReorderRoutingRules() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: (ruleIds: string[]) =>
+      api.campaigns.routingRules.reorder(ruleIds),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.routingRules });
+      toast({
+        title: 'Rules reordered',
+        description: response.message || 'Routing rule priorities updated',
+      });
+    },
+    onError: (error: ApiError) => {
+      toast({
+        title: 'Failed to reorder rules',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useTestRouting() {
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: (contactId: string) =>
+      api.campaigns.routingRules.test(contactId),
+    onSuccess: (response) => {
+      const { campaign, matchedRule, fallbackUsed } = response.data;
+      if (campaign) {
+        toast({
+          title: 'Routing test complete',
+          description: matchedRule 
+            ? `Would route to "${campaign.name}" via rule "${matchedRule.name}"`
+            : `Would route to "${campaign.name}" (fallback)`,
+        });
+      } else {
+        toast({
+          title: 'No route found',
+          description: 'Contact would not be enrolled (no matching rule)',
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error: ApiError) => {
+      toast({
+        title: 'Routing test failed',
         description: error.message,
         variant: 'destructive',
       });

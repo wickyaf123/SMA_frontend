@@ -39,6 +39,11 @@ import type {
   ScheduleTemplate,
   ScheduleSettings,
   UpdateSchedulesInput,
+  CampaignRoutingRule,
+  CreateRoutingRuleInput,
+  UpdateRoutingRuleInput,
+  RoutingFilterOptions,
+  RoutingTestResult,
 } from '@/types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -255,6 +260,40 @@ export const api = {
     // Aggregated outreach stats by channel
     outreachStats: () =>
       request<{ data: OutreachStats }>('/campaigns/outreach-stats'),
+    
+    // Sync campaigns from Instantly
+    syncFromInstantly: () =>
+      request<{ success: boolean; data: { created: number; updated: number; campaigns: Campaign[] }; message: string }>(
+        '/campaigns/sync/instantly', 
+        { method: 'POST' }
+      ),
+    
+    // ==================== ROUTING RULES ====================
+    routingRules: {
+      list: (params?: { isActive?: boolean; campaignId?: string }) =>
+        request<{ success: boolean; data: CampaignRoutingRule[]; count: number }>('/campaigns/routing-rules', { params }),
+      
+      get: (id: string) =>
+        request<{ success: boolean; data: CampaignRoutingRule }>(`/campaigns/routing-rules/${id}`),
+      
+      create: (data: CreateRoutingRuleInput) =>
+        request<{ success: boolean; data: CampaignRoutingRule; message: string }>('/campaigns/routing-rules', { method: 'POST', body: data }),
+      
+      update: (id: string, data: UpdateRoutingRuleInput) =>
+        request<{ success: boolean; data: CampaignRoutingRule; message: string }>(`/campaigns/routing-rules/${id}`, { method: 'PUT', body: data }),
+      
+      delete: (id: string) =>
+        request<{ success: boolean; message: string }>(`/campaigns/routing-rules/${id}`, { method: 'DELETE' }),
+      
+      reorder: (ruleIds: string[]) =>
+        request<{ success: boolean; data: CampaignRoutingRule[]; message: string }>('/campaigns/routing-rules/reorder', { method: 'POST', body: { ruleIds } }),
+      
+      test: (contactId: string) =>
+        request<{ success: boolean; data: RoutingTestResult; message: string }>('/campaigns/routing-rules/test', { method: 'POST', body: { contactId } }),
+      
+      filterOptions: () =>
+        request<{ success: boolean; data: RoutingFilterOptions }>('/campaigns/routing-rules/filter-options'),
+    },
   },
   
   // ==================== SETTINGS ====================
