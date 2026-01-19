@@ -749,25 +749,45 @@ export const Settings = () => {
 
   // Local state for scraper forms
   const [apifyForm, setApifyForm] = useState<ApifyScraperSettings>({
-    query: 'HVAC companies',
-    location: 'United States',
+    searchTerms: [],
+    locations: [],
+    industries: [],
     maxResults: 50,
     minRating: 0,
     requirePhone: true,
     requireWebsite: false,
     skipClosed: true,
+    language: 'en',
+    searchMatching: 'all',
+    scrapePlaceDetails: false,
+    scrapeContacts: false,
+    scrapeReviews: false,
+    maxReviews: 0,
+    minReviewCount: 0,
   });
   
   const [apolloForm, setApolloForm] = useState<ApolloScraperSettings>({
-    industry: 'HVAC',
-    personTitles: ['Owner', 'CEO', 'President', 'COO', 'General Manager'],
-    locations: ['United States'],
+    industry: '',
+    personTitles: [],
+    locations: [],
     excludeLocations: [],
     employeesMin: null,
     employeesMax: null,
     revenueMin: null,
     revenueMax: null,
     enrichLimit: 100,
+    enrichPhones: true,
+    searchKeywords: '',
+    personLocations: [],
+    personSeniorities: [],
+    organizationKeywordTags: [],
+    negativeKeywordTags: [],
+    technologies: [],
+    industryTagIds: [],
+    employeeGrowthRate: '',
+    fundingStage: '',
+    page: 1,
+    perPage: 100,
   });
 
   // Sync scraper settings from API
@@ -1527,7 +1547,7 @@ export const Settings = () => {
                   Google Maps Scraper (Apify)
                 </CardTitle>
                 <CardDescription>
-                  Configure how Track A scrapes businesses from Google Maps
+                  Configure how Track A scrapes businesses from Google Maps. All fields are required.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -1537,32 +1557,69 @@ export const Settings = () => {
                   </div>
                 ) : (
                   <>
+                    <div className="space-y-2">
+                      <Label htmlFor="apifySearchTerms" className="flex items-center gap-2">
+                        Search Terms <Badge variant="destructive" className="text-[10px] px-1 py-0">Required</Badge>
+                      </Label>
+                      <Textarea
+                        id="apifySearchTerms"
+                        placeholder="e.g., HVAC contractor, heating and cooling, air conditioning repair (one per line)"
+                        rows={3}
+                        value={(apifyForm.searchTerms || []).join('\n')}
+                        onChange={(e) => setApifyForm({ 
+                          ...apifyForm, 
+                          searchTerms: e.target.value.split('\n').map(t => t.trim()).filter(Boolean) 
+                        })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Enter search terms (one per line). Example: "HVAC contractor", "heating and cooling"
+                      </p>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <Label htmlFor="apifyQuery">Search Query</Label>
-                        <Input
-                          id="apifyQuery"
-                          placeholder="e.g., HVAC companies"
-                          value={apifyForm.query}
-                          onChange={(e) => setApifyForm({ ...apifyForm, query: e.target.value })}
+                        <Label htmlFor="apifyLocations" className="flex items-center gap-2">
+                          Locations <Badge variant="destructive" className="text-[10px] px-1 py-0">Required</Badge>
+                        </Label>
+                        <Textarea
+                          id="apifyLocations"
+                          placeholder="e.g., Denver, CO (one per line)"
+                          rows={4}
+                          value={(apifyForm.locations || []).join('\n')}
+                          onChange={(e) => setApifyForm({ 
+                            ...apifyForm, 
+                            locations: e.target.value.split('\n').map(t => t.trim()).filter(Boolean) 
+                          })}
                         />
-                        <p className="text-xs text-muted-foreground">Business type to search for</p>
+                        <p className="text-xs text-muted-foreground">
+                          Cities, states, or regions (one per line). Example: "Denver, CO", "Austin, TX"
+                        </p>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="apifyLocation">Location</Label>
-                        <Input
-                          id="apifyLocation"
-                          placeholder="e.g., United States"
-                          value={apifyForm.location}
-                          onChange={(e) => setApifyForm({ ...apifyForm, location: e.target.value })}
+                        <Label htmlFor="apifyIndustries" className="flex items-center gap-2">
+                          Industries <Badge variant="destructive" className="text-[10px] px-1 py-0">Required</Badge>
+                        </Label>
+                        <Textarea
+                          id="apifyIndustries"
+                          placeholder="e.g., HVAC, SOLAR, ROOFING (one per line)"
+                          rows={4}
+                          value={(apifyForm.industries || []).join('\n')}
+                          onChange={(e) => setApifyForm({ 
+                            ...apifyForm, 
+                            industries: e.target.value.split('\n').map(t => t.trim()).filter(Boolean) 
+                          })}
                         />
-                        <p className="text-xs text-muted-foreground">Geographic area to search</p>
+                        <p className="text-xs text-muted-foreground">
+                          Target industries (one per line). Typically: HVAC, SOLAR, ROOFING
+                        </p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-2">
-                        <Label htmlFor="apifyMaxResults">Max Results</Label>
+                        <Label htmlFor="apifyMaxResults" className="flex items-center gap-2">
+                          Max Results <Badge variant="destructive" className="text-[10px] px-1 py-0">Required</Badge>
+                        </Label>
                         <Input
                           id="apifyMaxResults"
                           type="number"
@@ -1571,7 +1628,7 @@ export const Settings = () => {
                           value={apifyForm.maxResults}
                           onChange={(e) => setApifyForm({ ...apifyForm, maxResults: parseInt(e.target.value) || 50 })}
                         />
-                        <p className="text-xs text-muted-foreground">Results per run (max 1000)</p>
+                        <p className="text-xs text-muted-foreground">Results per location (1-1000)</p>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="apifyMinRating">Minimum Rating</Label>
@@ -1586,17 +1643,35 @@ export const Settings = () => {
                         />
                         <p className="text-xs text-muted-foreground">Min Google rating (0-5)</p>
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="apifyLanguage">Language</Label>
+                        <Select
+                          value={apifyForm.language || 'en'}
+                          onValueChange={(value) => setApifyForm({ ...apifyForm, language: value })}
+                        >
+                          <SelectTrigger id="apifyLanguage">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="en">English</SelectItem>
+                            <SelectItem value="es">Spanish</SelectItem>
+                            <SelectItem value="fr">French</SelectItem>
+                            <SelectItem value="de">German</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">Search language</p>
+                      </div>
                     </div>
 
                     <Separator />
 
                     <div className="space-y-4">
-                      <h4 className="text-sm font-medium">Filters</h4>
+                      <h4 className="text-sm font-medium">Basic Filters</h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
                           <div>
                             <p className="text-sm font-medium">Require Phone</p>
-                            <p className="text-xs text-muted-foreground">Only include businesses with phone</p>
+                            <p className="text-xs text-muted-foreground">Only with phone number</p>
                           </div>
                           <Switch
                             checked={apifyForm.requirePhone}
@@ -1606,7 +1681,7 @@ export const Settings = () => {
                         <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
                           <div>
                             <p className="text-sm font-medium">Require Website</p>
-                            <p className="text-xs text-muted-foreground">Only include businesses with website</p>
+                            <p className="text-xs text-muted-foreground">Only with website</p>
                           </div>
                           <Switch
                             checked={apifyForm.requireWebsite}
@@ -1616,7 +1691,7 @@ export const Settings = () => {
                         <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
                           <div>
                             <p className="text-sm font-medium">Skip Closed</p>
-                            <p className="text-xs text-muted-foreground">Exclude permanently closed businesses</p>
+                            <p className="text-xs text-muted-foreground">Exclude closed businesses</p>
                           </div>
                           <Switch
                             checked={apifyForm.skipClosed}
@@ -1626,10 +1701,104 @@ export const Settings = () => {
                       </div>
                     </div>
 
-                    <div className="flex justify-end">
+                    <Separator />
+
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-medium">Advanced Options</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="apifySearchMatching">Search Matching</Label>
+                          <Select
+                            value={apifyForm.searchMatching || 'all'}
+                            onValueChange={(value: 'all' | 'exact') => setApifyForm({ ...apifyForm, searchMatching: value })}
+                          >
+                            <SelectTrigger id="apifySearchMatching">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All (broader results)</SelectItem>
+                              <SelectItem value="exact">Exact (stricter matching)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="apifyMinReviewCount">Min Review Count</Label>
+                          <Input
+                            id="apifyMinReviewCount"
+                            type="number"
+                            min="0"
+                            value={apifyForm.minReviewCount || 0}
+                            onChange={(e) => setApifyForm({ ...apifyForm, minReviewCount: parseInt(e.target.value) || 0 })}
+                          />
+                          <p className="text-xs text-muted-foreground">Minimum number of reviews</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
+                          <div>
+                            <p className="text-sm font-medium">Scrape Place Details</p>
+                            <p className="text-xs text-muted-foreground">Full place information</p>
+                          </div>
+                          <Switch
+                            checked={apifyForm.scrapePlaceDetails || false}
+                            onCheckedChange={(checked) => setApifyForm({ ...apifyForm, scrapePlaceDetails: checked })}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
+                          <div>
+                            <p className="text-sm font-medium">Scrape Contacts</p>
+                            <p className="text-xs text-muted-foreground">Extended contact info</p>
+                          </div>
+                          <Switch
+                            checked={apifyForm.scrapeContacts || false}
+                            onCheckedChange={(checked) => setApifyForm({ ...apifyForm, scrapeContacts: checked })}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
+                          <div>
+                            <p className="text-sm font-medium">Scrape Reviews</p>
+                            <p className="text-xs text-muted-foreground">Include reviews</p>
+                          </div>
+                          <Switch
+                            checked={apifyForm.scrapeReviews || false}
+                            onCheckedChange={(checked) => setApifyForm({ ...apifyForm, scrapeReviews: checked })}
+                          />
+                        </div>
+                      </div>
+
+                      {apifyForm.scrapeReviews && (
+                        <div className="space-y-2">
+                          <Label htmlFor="apifyMaxReviews">Max Reviews per Place</Label>
+                          <Input
+                            id="apifyMaxReviews"
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={apifyForm.maxReviews || 0}
+                            onChange={(e) => setApifyForm({ ...apifyForm, maxReviews: parseInt(e.target.value) || 0 })}
+                          />
+                          <p className="text-xs text-muted-foreground">Maximum reviews to scrape per location (0-100)</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          if (scraperSettingsData?.data?.apify) {
+                            setApifyForm(scraperSettingsData.data.apify);
+                          }
+                        }}
+                        className="gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Reset
+                      </Button>
                       <Button 
                         onClick={() => updateApifySettings.mutate(apifyForm)} 
-                        disabled={updateApifySettings.isPending}
+                        disabled={updateApifySettings.isPending || !apifyForm.searchTerms?.length || !apifyForm.locations?.length || !apifyForm.industries?.length}
                         className="gap-2"
                       >
                         {updateApifySettings.isPending ? (
@@ -1637,7 +1806,7 @@ export const Settings = () => {
                         ) : (
                           <Save className="w-4 h-4" />
                         )}
-                        Save Apify Settings
+                        Save Google Maps Settings
                       </Button>
                     </div>
                   </>
@@ -1653,7 +1822,7 @@ export const Settings = () => {
                   Apollo Scraper (Track B)
                 </CardTitle>
                 <CardDescription>
-                  Configure how Track B enriches leads from Apollo.io
+                  Configure how Track B enriches leads from Apollo.io. Required fields must be configured.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -1665,14 +1834,16 @@ export const Settings = () => {
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <Label htmlFor="apolloIndustry">Industry</Label>
+                        <Label htmlFor="apolloIndustry" className="flex items-center gap-2">
+                          Industry <Badge variant="destructive" className="text-[10px] px-1 py-0">Required</Badge>
+                        </Label>
                         <Input
                           id="apolloIndustry"
-                          placeholder="e.g., HVAC"
+                          placeholder="e.g., HVAC, SOLAR, or ROOFING"
                           value={apolloForm.industry}
                           onChange={(e) => setApolloForm({ ...apolloForm, industry: e.target.value })}
                         />
-                        <p className="text-xs text-muted-foreground">Target industry keyword</p>
+                        <p className="text-xs text-muted-foreground">Target industry (HVAC, SOLAR, ROOFING)</p>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="apolloEnrichLimit">Enrich Limit</Label>
@@ -1684,36 +1855,173 @@ export const Settings = () => {
                           value={apolloForm.enrichLimit}
                           onChange={(e) => setApolloForm({ ...apolloForm, enrichLimit: parseInt(e.target.value) || 100 })}
                         />
-                        <p className="text-xs text-muted-foreground">Max contacts per run</p>
+                        <p className="text-xs text-muted-foreground">Max contacts per run (1-500)</p>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="apolloPersonTitles">Person Titles</Label>
+                      <Label htmlFor="apolloSearchKeywords" className="flex items-center gap-2">
+                        Search Keywords <Badge variant="destructive" className="text-[10px] px-1 py-0">Required</Badge>
+                      </Label>
                       <Input
+                        id="apolloSearchKeywords"
+                        placeholder="e.g., HVAC OR heating OR air conditioning"
+                        value={apolloForm.searchKeywords || ''}
+                        onChange={(e) => setApolloForm({ ...apolloForm, searchKeywords: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Organization search keywords (OR operators supported)
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg">
+                      <div>
+                        <p className="font-medium text-foreground">Enrich Phone Numbers</p>
+                        <p className="text-sm text-muted-foreground">
+                          Costs 8 credits per contact. Disable to conserve Apollo credits.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={apolloForm.enrichPhones}
+                        onCheckedChange={(checked) => 
+                          setApolloForm({ ...apolloForm, enrichPhones: checked })
+                        }
+                      />
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-medium">Person Filters</h4>
+                    <div className="space-y-2">
+                        <Label htmlFor="apolloPersonTitles" className="flex items-center gap-2">
+                          Person Titles <Badge variant="destructive" className="text-[10px] px-1 py-0">Required</Badge>
+                        </Label>
+                        <Textarea
                         id="apolloPersonTitles"
-                        placeholder="Owner, CEO, President, COO"
-                        value={apolloForm.personTitles.join(', ')}
+                          placeholder="Owner, CEO, President, COO, General Manager (comma-separated)"
+                          rows={2}
+                          value={(apolloForm.personTitles || []).join(', ')}
                         onChange={(e) => setApolloForm({ 
                           ...apolloForm, 
                           personTitles: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
                         })}
                       />
-                      <p className="text-xs text-muted-foreground">Comma-separated list of job titles to target</p>
+                        <p className="text-xs text-muted-foreground">Job titles to target (comma-separated)</p>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="apolloLocations">Locations</Label>
-                      <Input
+                        <Label htmlFor="apolloPersonLocations">Person Locations (Optional)</Label>
+                        <Textarea
+                          id="apolloPersonLocations"
+                          placeholder="United States, California (comma-separated)"
+                          rows={2}
+                          value={apolloForm.personLocations?.join(', ') || ''}
+                          onChange={(e) => setApolloForm({ 
+                            ...apolloForm, 
+                            personLocations: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                          })}
+                        />
+                        <p className="text-xs text-muted-foreground">Filter by person's location</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="apolloPersonSeniorities">Person Seniorities (Optional)</Label>
+                        <Textarea
+                          id="apolloPersonSeniorities"
+                          placeholder="owner, c_suite, vp, director (comma-separated)"
+                          rows={2}
+                          value={apolloForm.personSeniorities?.join(', ') || ''}
+                          onChange={(e) => setApolloForm({ 
+                            ...apolloForm, 
+                            personSeniorities: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                          })}
+                        />
+                        <p className="text-xs text-muted-foreground">Seniority levels (owner, c_suite, vp, director, manager)</p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-medium">Organization Filters</h4>
+                      <div className="space-y-2">
+                        <Label htmlFor="apolloLocations" className="flex items-center gap-2">
+                          Organization Locations <Badge variant="destructive" className="text-[10px] px-1 py-0">Required</Badge>
+                        </Label>
+                        <Textarea
                         id="apolloLocations"
-                        placeholder="United States"
-                        value={apolloForm.locations.join(', ')}
+                          placeholder="United States, Texas, California (comma-separated)"
+                          rows={2}
+                          value={(apolloForm.locations || []).join(', ')}
                         onChange={(e) => setApolloForm({ 
                           ...apolloForm, 
                           locations: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
                         })}
                       />
-                      <p className="text-xs text-muted-foreground">Comma-separated list of locations (countries, states, cities)</p>
+                        <p className="text-xs text-muted-foreground">Organization locations (countries, states, cities)</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="apolloExcludeLocations">Exclude Locations (Optional)</Label>
+                        <Textarea
+                          id="apolloExcludeLocations"
+                          placeholder="New York, California (comma-separated)"
+                          rows={2}
+                          value={apolloForm.excludeLocations?.join(', ') || ''}
+                          onChange={(e) => setApolloForm({ 
+                            ...apolloForm, 
+                            excludeLocations: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                          })}
+                        />
+                        <p className="text-xs text-muted-foreground">Locations to exclude</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="apolloOrganizationKeywordTags">Positive Keyword Tags</Label>
+                          <Textarea
+                            id="apolloOrganizationKeywordTags"
+                            placeholder="commercial, residential (comma-separated)"
+                            rows={2}
+                            value={apolloForm.organizationKeywordTags?.join(', ') || ''}
+                            onChange={(e) => setApolloForm({ 
+                              ...apolloForm, 
+                              organizationKeywordTags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                            })}
+                          />
+                          <p className="text-xs text-muted-foreground">Must-have keywords</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="apolloNegativeKeywordTags">Negative Keyword Tags</Label>
+                          <Textarea
+                            id="apolloNegativeKeywordTags"
+                            placeholder="supplier, wholesale (comma-separated)"
+                            rows={2}
+                            value={apolloForm.negativeKeywordTags?.join(', ') || ''}
+                            onChange={(e) => setApolloForm({ 
+                              ...apolloForm, 
+                              negativeKeywordTags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                            })}
+                          />
+                          <p className="text-xs text-muted-foreground">Keywords to exclude</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="apolloTechnologies">Technologies (Optional)</Label>
+                        <Textarea
+                          id="apolloTechnologies"
+                          placeholder="Salesforce, HubSpot (comma-separated)"
+                          rows={2}
+                          value={apolloForm.technologies?.join(', ') || ''}
+                          onChange={(e) => setApolloForm({ 
+                            ...apolloForm, 
+                            technologies: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                          })}
+                        />
+                        <p className="text-xs text-muted-foreground">Tech stack filters</p>
+                      </div>
                     </div>
 
                     <Separator />
@@ -1774,6 +2082,7 @@ export const Settings = () => {
                               revenueMin: e.target.value ? parseInt(e.target.value) : null 
                             })}
                           />
+                          <p className="text-xs text-muted-foreground">e.g., 1000000 for $1M</p>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="apolloRevenueMax">Max Revenue</Label>
@@ -1788,14 +2097,96 @@ export const Settings = () => {
                               revenueMax: e.target.value ? parseInt(e.target.value) : null 
                             })}
                           />
+                          <p className="text-xs text-muted-foreground">e.g., 10000000 for $10M</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex justify-end">
+                    <Separator />
+
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-medium">Additional Filters</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="apolloEmployeeGrowthRate">Employee Growth Rate</Label>
+                          <Select
+                            value={apolloForm.employeeGrowthRate || undefined}
+                            onValueChange={(value) => setApolloForm({ ...apolloForm, employeeGrowthRate: value })}
+                          >
+                            <SelectTrigger id="apolloEmployeeGrowthRate">
+                              <SelectValue placeholder="Any growth rate" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="growing">Growing</SelectItem>
+                              <SelectItem value="stable">Stable</SelectItem>
+                              <SelectItem value="declining">Declining</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">Optional - leave unselected for any</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="apolloFundingStage">Funding Stage</Label>
+                          <Select
+                            value={apolloForm.fundingStage || undefined}
+                            onValueChange={(value) => setApolloForm({ ...apolloForm, fundingStage: value })}
+                          >
+                            <SelectTrigger id="apolloFundingStage">
+                              <SelectValue placeholder="Any funding stage" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="seed">Seed</SelectItem>
+                              <SelectItem value="series_a">Series A</SelectItem>
+                              <SelectItem value="series_b">Series B</SelectItem>
+                              <SelectItem value="series_c">Series C+</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">Optional - leave unselected for any</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="apolloPage">Page Number</Label>
+                          <Input
+                            id="apolloPage"
+                            type="number"
+                            min="1"
+                            value={apolloForm.page || 1}
+                            onChange={(e) => setApolloForm({ ...apolloForm, page: parseInt(e.target.value) || 1 })}
+                          />
+                          <p className="text-xs text-muted-foreground">Starting page (default: 1)</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="apolloPerPage">Results Per Page</Label>
+                          <Input
+                            id="apolloPerPage"
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={apolloForm.perPage || 100}
+                            onChange={(e) => setApolloForm({ ...apolloForm, perPage: parseInt(e.target.value) || 100 })}
+                          />
+                          <p className="text-xs text-muted-foreground">Max 100 per page</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          if (scraperSettingsData?.data?.apollo) {
+                            setApolloForm(scraperSettingsData.data.apollo);
+                          }
+                        }}
+                        className="gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Reset
+                      </Button>
                       <Button 
                         onClick={() => updateApolloSettings.mutate(apolloForm)} 
-                        disabled={updateApolloSettings.isPending}
+                        disabled={updateApolloSettings.isPending || !apolloForm.industry || !apolloForm.locations?.length || !apolloForm.personTitles?.length || !apolloForm.searchKeywords}
                         className="gap-2"
                       >
                         {updateApolloSettings.isPending ? (

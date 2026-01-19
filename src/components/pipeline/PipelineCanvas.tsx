@@ -13,6 +13,7 @@ import {
 import { PipelineNode, PipelineNodeData } from "./PipelineNode";
 import { PipelineConnector } from "./PipelineConnector";
 import { NodeDetailPanel } from "./NodeDetailPanel";
+import { TestPipelineButton } from "./TestPipelineButton";
 import { useContactStats, useCampaigns } from "@/hooks/useApi";
 
 export const PipelineCanvas = () => {
@@ -102,9 +103,23 @@ const outreachChannels = [
   };
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      {/* Pipeline Canvas */}
-      <div className="flex-1 canvas-grid overflow-auto p-8">
+    <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Header with Test Button */}
+      <div className="px-6 py-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">End-to-End Automation Pipeline</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Test the complete workflow from lead import to campaign enrollment
+            </p>
+          </div>
+          <TestPipelineButton />
+        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Pipeline Canvas */}
+        <div className="flex-1 canvas-grid overflow-auto p-8">
         <div className="min-h-full flex flex-col items-center py-8">
           {/* Stage Label */}
           <div className="mb-4">
@@ -221,13 +236,14 @@ const outreachChannels = [
         </div>
       </div>
 
-      {/* Detail Panel */}
-      {selectedNode && (
-        <NodeDetailPanel 
-          node={selectedNode} 
-          onClose={() => setSelectedNode(null)} 
-        />
-      )}
+        {/* Detail Panel */}
+        {selectedNode && (
+          <NodeDetailPanel 
+            node={selectedNode} 
+            onClose={() => setSelectedNode(null)} 
+          />
+        )}
+      </div>
     </div>
   );
 };

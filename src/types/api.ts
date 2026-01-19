@@ -234,13 +234,22 @@ export interface Settings {
 }
 
 export interface ApifyScraperSettings {
-  query: string;
-  location: string;
+  searchTerms: string[];
+  locations: string[];
+  industries: string[];
   maxResults: number;
   minRating: number;
   requirePhone: boolean;
   requireWebsite: boolean;
   skipClosed: boolean;
+  language?: string;
+  searchMatching?: 'all' | 'exact';
+  scrapePlaceDetails?: boolean;
+  scrapeContacts?: boolean;
+  scrapeReviews?: boolean;
+  maxReviews?: number;
+  scrapeSocialMedia?: any;
+  minReviewCount?: number;
 }
 
 export interface ApolloScraperSettings {
@@ -253,6 +262,18 @@ export interface ApolloScraperSettings {
   revenueMin: number | null;
   revenueMax: number | null;
   enrichLimit: number;
+  enrichPhones: boolean;
+  searchKeywords?: string;
+  personLocations?: string[];
+  personSeniorities?: string[];
+  organizationKeywordTags?: string[];
+  negativeKeywordTags?: string[];
+  technologies?: string[];
+  industryTagIds?: string[];
+  employeeGrowthRate?: string;
+  fundingStage?: string;
+  page?: number;
+  perPage?: number;
 }
 
 export interface PipelineControlSettings {
