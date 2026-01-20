@@ -176,7 +176,7 @@ export const Leads = () => {
     order: sortDirection,
   });
 
-  const { data: campaignsData, refetch: refetchCampaigns } = useCampaigns({ status: "ACTIVE" });
+  const { data: campaignsData, refetch: refetchCampaigns } = useCampaigns();
   const createContact = useCreateContact();
   const updateContact = useUpdateContact();
   const deleteContact = useDeleteContact();
