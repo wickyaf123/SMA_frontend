@@ -98,7 +98,7 @@ type SortField = "fullName" | "company" | "status" | "createdAt";
 type SortDirection = "asc" | "desc";
 
 // Column visibility configuration
-type ColumnKey = "contact" | "company" | "validation" | "status" | "source" | "added" | "lastReply" | "campaign" | "dataQuality" | "lastContacted";
+type ColumnKey = "contact" | "company" | "validation" | "status" | "source" | "added" | "lastReply" | "campaign" | "dataQuality" | "lastContacted" | "googleRating";
 
 const defaultColumnVisibility: Record<ColumnKey, boolean> = {
   contact: true,
@@ -111,6 +111,7 @@ const defaultColumnVisibility: Record<ColumnKey, boolean> = {
   campaign: true,
   dataQuality: true,
   lastContacted: true,
+  googleRating: true,
 };
 
 export const Leads = () => {
@@ -118,7 +119,7 @@ export const Leads = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [replyFilter, setReplyFilter] = useState<string>("all");
+  const [validationFilter, setValidationFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -169,7 +170,6 @@ export const Leads = () => {
   const { data: contactsData, isLoading, error } = useContacts({
     search: search || undefined,
     status: statusFilter !== "all" ? [statusFilter as ContactStatus] : undefined,
-    hasReplied: replyFilter === "all" ? undefined : replyFilter === "replied",
     page: currentPage,
     limit: itemsPerPage,
     sort: sortField,
@@ -210,11 +210,28 @@ export const Leads = () => {
   const pagination = contactsData?.pagination;
   const campaigns = campaignsData?.data || [];
 
-  // Filter by source (client-side since backend might not support it)
+  // Filter by source and validation (client-side)
   const filteredContacts = useMemo(() => {
-    if (sourceFilter === "all") return contacts;
-    return contacts.filter((c) => c.source?.toLowerCase() === sourceFilter.toLowerCase());
-  }, [contacts, sourceFilter]);
+    let filtered = contacts;
+    
+    // Source filter
+    if (sourceFilter !== "all") {
+      filtered = filtered.filter((c) => c.source?.toLowerCase() === sourceFilter.toLowerCase());
+    }
+    
+    // Validation filter (combines email and phone validation)
+    if (validationFilter !== "all") {
+      if (validationFilter.startsWith("email-")) {
+        const emailStatus = validationFilter.replace("email-", "");
+        filtered = filtered.filter((c) => c.emailValidationStatus === emailStatus);
+      } else if (validationFilter.startsWith("phone-")) {
+        const phoneStatus = validationFilter.replace("phone-", "");
+        filtered = filtered.filter((c) => c.phoneValidationStatus === phoneStatus);
+      }
+    }
+    
+    return filtered;
+  }, [contacts, sourceFilter, validationFilter]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -441,15 +458,26 @@ export const Leads = () => {
             </SelectContent>
           </Select>
 
-          <Select value={replyFilter} onValueChange={(v) => { setReplyFilter(v); setCurrentPage(1); }}>
-            <SelectTrigger className="w-36 bg-card">
-              <Reply className="w-4 h-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="Replies" />
+          <Select value={validationFilter} onValueChange={(v) => { setValidationFilter(v); setCurrentPage(1); }}>
+            <SelectTrigger className="w-44 bg-card">
+              <Check className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Validation" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Contacts</SelectItem>
-              <SelectItem value="replied">Has Replied</SelectItem>
-              <SelectItem value="not-replied">No Reply</SelectItem>
+              <SelectItem value="all">All Validation</SelectItem>
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Email</div>
+              <SelectItem value="email-VALID">Email: Valid</SelectItem>
+              <SelectItem value="email-INVALID">Email: Invalid</SelectItem>
+              <SelectItem value="email-PENDING">Email: Pending</SelectItem>
+              <SelectItem value="email-CATCH_ALL">Email: Catch All</SelectItem>
+              <SelectItem value="email-UNKNOWN">Email: Unknown</SelectItem>
+              <SelectItem value="email-DISPOSABLE">Email: Disposable</SelectItem>
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-1">Phone</div>
+              <SelectItem value="phone-VALID_MOBILE">Phone: Valid Mobile</SelectItem>
+              <SelectItem value="phone-VALID_LANDLINE">Phone: Valid Landline</SelectItem>
+              <SelectItem value="phone-INVALID">Phone: Invalid</SelectItem>
+              <SelectItem value="phone-PENDING">Phone: Pending</SelectItem>
+              <SelectItem value="phone-UNKNOWN">Phone: Unknown</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -484,6 +512,12 @@ export const Leads = () => {
                 onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, dataQuality: checked }))}
               >
                 Data Quality
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={columnVisibility.googleRating}
+                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, googleRating: checked }))}
+              >
+                Google Rating
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={columnVisibility.lastContacted}
@@ -654,26 +688,30 @@ export const Leads = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Job Titles (comma separated)</Label>
-              <Input
-                value={apolloFilters.personTitles?.join(", ") || ""}
+              <Label>Job Titles (one per line)</Label>
+              <Textarea
+                rows={3}
+                value={apolloFilters.personTitles?.join("\n") || ""}
                 onChange={(e) => setApolloFilters({ 
                   ...apolloFilters, 
-                  personTitles: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
+                  personTitles: e.target.value.split("\n").map(s => s.trim()).filter(Boolean)
                 })}
-                placeholder="e.g., Owner, CEO, President"
+                placeholder="Owner&#10;CEO&#10;President"
               />
+              <p className="text-xs text-muted-foreground">Enter one job title per line</p>
             </div>
             <div className="space-y-2">
-              <Label>Locations (comma separated)</Label>
-              <Input
-                value={apolloFilters.organizationLocations?.join(", ") || ""}
+              <Label>Locations (one per line)</Label>
+              <Textarea
+                rows={3}
+                value={apolloFilters.organizationLocations?.join("\n") || ""}
                 onChange={(e) => setApolloFilters({ 
                   ...apolloFilters, 
-                  organizationLocations: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
+                  organizationLocations: e.target.value.split("\n").map(s => s.trim()).filter(Boolean)
                 })}
-                placeholder="e.g., California, Texas"
+                placeholder="California&#10;Texas&#10;New York"
               />
+              <p className="text-xs text-muted-foreground">Enter one location per line</p>
             </div>
             <div className="space-y-2">
               <Label>Max Contacts to Import</Label>
@@ -1198,6 +1236,11 @@ export const Leads = () => {
                     Last Contacted
                   </th>
                 )}
+                {columnVisibility.googleRating && (
+                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                    Google Rating
+                  </th>
+                )}
                 {columnVisibility.source && (
                   <th className="p-4 text-left text-sm font-medium text-muted-foreground">
                     Source
@@ -1397,6 +1440,20 @@ export const Leads = () => {
                         </div>
                       ) : (
                         <span className="text-sm text-muted-foreground">Never</span>
+                      )}
+                    </td>
+                  )}
+                  {columnVisibility.googleRating && (
+                    <td className="p-4">
+                      {contact.enrichmentData && typeof contact.enrichmentData === 'object' && 'rating' in contact.enrichmentData && contact.enrichmentData.rating ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-medium">{Number(contact.enrichmentData.rating).toFixed(1)}</span>
+                          <span className="text-xs text-muted-foreground">
+                            ({(contact.enrichmentData as any).reviewCount || 0} reviews)
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
                       )}
                     </td>
                   )}
