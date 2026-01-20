@@ -28,6 +28,7 @@ import {
   Clock,
   BarChart3,
   Reply,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -75,8 +76,10 @@ import {
   useContactReplies,
   useContactActivity,
   useContactMessages,
+  useSyncFromInstantly,
 } from "@/hooks/useApi";
 import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import type { 
   Contact, 
   ContactStatus, 
@@ -157,8 +160,12 @@ export const Leads = () => {
     skipIfInWorkspace: false,
     skipIfInCampaign: false,
   });
+  
+  // Track if we've already synced campaigns from Instantly this session
+  const [hasSyncedCampaigns, setHasSyncedCampaigns] = useState(false);
 
   // API Hooks
+  const { toast } = useToast();
   const { data: contactsData, isLoading, error } = useContacts({
     search: search || undefined,
     status: statusFilter !== "all" ? [statusFilter as ContactStatus] : undefined,
@@ -169,13 +176,14 @@ export const Leads = () => {
     order: sortDirection,
   });
 
-  const { data: campaignsData } = useCampaigns({ status: "ACTIVE" });
+  const { data: campaignsData, refetch: refetchCampaigns } = useCampaigns({ status: "ACTIVE" });
   const createContact = useCreateContact();
   const updateContact = useUpdateContact();
   const deleteContact = useDeleteContact();
   const sendSms = useSendSms();
   const importApollo = useImportApollo();
   const enrollContacts = useEnrollContacts();
+  const syncFromInstantly = useSyncFromInstantly();
   
   // Poll import status
   const { data: importStatus } = useImportStatus(importJobId || "", {
@@ -297,6 +305,37 @@ export const Leads = () => {
         await deleteContact.mutateAsync(id);
       }
       setSelectedIds(new Set());
+    }
+  };
+
+  // Auto-sync campaigns from Instantly when enrollment dialog opens (once per session)
+  const syncCampaignsIfNeeded = async () => {
+    if (!hasSyncedCampaigns && !syncFromInstantly.isPending) {
+      try {
+        await syncFromInstantly.mutateAsync();
+        setHasSyncedCampaigns(true);
+        // Refetch campaigns after sync
+        await refetchCampaigns();
+      } catch (error) {
+        // Error is already handled by the hook toast
+        console.error('Failed to sync campaigns:', error);
+      }
+    }
+  };
+
+  // Manual sync campaigns from Instantly (for the sync button)
+  const handleManualSyncCampaigns = async () => {
+    try {
+      await syncFromInstantly.mutateAsync();
+      // Refetch campaigns after sync
+      await refetchCampaigns();
+      toast({
+        title: "Campaigns synced",
+        description: "Successfully synced campaigns from Instantly",
+      });
+    } catch (error) {
+      // Error is already handled by the hook toast
+      console.error('Failed to sync campaigns:', error);
     }
   };
 
@@ -688,7 +727,13 @@ export const Leads = () => {
       </Dialog>
 
       {/* Enroll Dialog */}
-      <Dialog open={isEnrollOpen} onOpenChange={setIsEnrollOpen}>
+      <Dialog open={isEnrollOpen} onOpenChange={(open) => {
+        setIsEnrollOpen(open);
+        // Auto-sync campaigns when dialog opens
+        if (open) {
+          syncCampaignsIfNeeded();
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Enroll in Campaign</DialogTitle>
@@ -698,14 +743,30 @@ export const Leads = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Select Campaign</Label>
+              <div className="flex items-center justify-between">
+                <Label>Select Campaign</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleManualSyncCampaigns}
+                  disabled={syncFromInstantly.isPending}
+                  className="h-7 px-2 text-xs"
+                >
+                  <RefreshCw className={cn(
+                    "w-3 h-3 mr-1",
+                    syncFromInstantly.isPending && "animate-spin"
+                  )} />
+                  Sync from Instantly
+                </Button>
+              </div>
               {campaigns.length === 0 ? (
                 <div className="p-4 text-center rounded-lg bg-muted/30 border border-border">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Send className="w-8 h-8 opacity-50" />
                     <div>
                       <p className="font-medium text-foreground mb-1">No active campaigns found</p>
-                      <p className="text-sm">Create and activate a campaign in the Outreach tab first.</p>
+                      <p className="text-sm">Click "Sync from Instantly" above to load campaigns.</p>
                     </div>
                   </div>
                 </div>
