@@ -745,3 +745,14 @@ export interface RoutingTestResult {
   fallbackUsed: boolean;
 }
 
+export interface ExampleContact {
+  id: string;
+  label: string;
+  email: string;
+  source: string | null;
+  industry: string | null;
+  state: string | null;
+  country: string | null;
+  tags: string[];
+}
+

@@ -44,6 +44,7 @@ import type {
   UpdateRoutingRuleInput,
   RoutingFilterOptions,
   RoutingTestResult,
+  ExampleContact,
 } from '@/types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -293,6 +294,9 @@ export const api = {
       
       filterOptions: () =>
         request<{ success: boolean; data: RoutingFilterOptions }>('/campaigns/routing-rules/filter-options'),
+      
+      getExampleContacts: (limit?: number) =>
+        request<{ success: boolean; data: ExampleContact[] }>(`/campaigns/routing-rules/example-contacts${limit ? `?limit=${limit}` : ''}`),
     },
   },
   

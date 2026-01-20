@@ -75,6 +75,75 @@
     --node-reply: 38 95% 55%;
     --node-crm: 152 65% 45%;
   }
+
+  .dark {
+    /* Core backgrounds - dark theme */
+    --background: 220 20% 10%;
+    --foreground: 210 20% 95%;
+
+    /* Cards and surfaces */
+    --card: 220 20% 13%;
+    --card-foreground: 210 20% 95%;
+
+    --popover: 220 20% 13%;
+    --popover-foreground: 210 20% 95%;
+
+    /* Primary - Keep teal/cyan but adjust for dark */
+    --primary: 190 70% 50%;
+    --primary-foreground: 220 20% 10%;
+
+    /* Secondary */
+    --secondary: 220 20% 18%;
+    --secondary-foreground: 210 20% 90%;
+
+    /* Muted surfaces */
+    --muted: 220 20% 16%;
+    --muted-foreground: 220 10% 65%;
+
+    /* Accent */
+    --accent: 220 20% 18%;
+    --accent-foreground: 190 70% 60%;
+
+    /* Status colors - slightly brighter for dark mode */
+    --success: 152 65% 50%;
+    --success-foreground: 220 20% 10%;
+    
+    --warning: 38 95% 60%;
+    --warning-foreground: 220 20% 10%;
+    
+    --destructive: 0 72% 60%;
+    --destructive-foreground: 210 20% 95%;
+
+    --info: 210 85% 60%;
+    --info-foreground: 220 20% 10%;
+
+    /* Borders */
+    --border: 220 20% 25%;
+    --input: 220 20% 25%;
+    --ring: 190 70% 50%;
+
+    /* Canvas/Pipeline area */
+    --canvas: 220 20% 11%;
+    --canvas-dot: 220 20% 20%;
+    --node-connector: 220 20% 25%;
+
+    /* Sidebar */
+    --sidebar-background: 220 20% 13%;
+    --sidebar-foreground: 210 20% 80%;
+    --sidebar-primary: 190 70% 50%;
+    --sidebar-primary-foreground: 220 20% 10%;
+    --sidebar-accent: 220 20% 18%;
+    --sidebar-accent-foreground: 190 70% 60%;
+    --sidebar-border: 220 20% 22%;
+    --sidebar-ring: 190 70% 50%;
+
+    /* Pipeline node colors - adjusted for dark mode */
+    --node-ingestion: 210 85% 60%;
+    --node-validation: 280 65% 60%;
+    --node-outreach: 190 70% 50%;
+    --node-reply: 38 95% 60%;
+    --node-crm: 152 65% 50%;
+  }
 }
 
 @layer base {

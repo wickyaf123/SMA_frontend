@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import {
   Route, ArrowUpDown, GripVertical, TestTube, Filter
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useSettings, useToggleLinkedIn, useTemplates, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useSetDefaultTemplate, useScraperSettings, useUpdateApifySettings, useUpdateApolloSettings, usePipelineControls, useUpdatePipelineControls, useEmergencyStop, useResumePipeline, useScheduleTemplates, useScheduleSettings, useApplyScheduleTemplate, useUpdateSchedules, useTriggerScheduledJob, useRoutingRules, useRoutingFilterOptions, useCreateRoutingRule, useUpdateRoutingRule, useDeleteRoutingRule, useReorderRoutingRules, useTestRouting, useCampaigns, useSyncFromInstantly } from "@/hooks/useApi";
+import { useSettings, useToggleLinkedIn, useTemplates, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useSetDefaultTemplate, useScraperSettings, useUpdateApifySettings, useUpdateApolloSettings, usePipelineControls, useUpdatePipelineControls, useEmergencyStop, useResumePipeline, useScheduleTemplates, useScheduleSettings, useApplyScheduleTemplate, useUpdateSchedules, useTriggerScheduledJob, useRoutingRules, useRoutingFilterOptions, useCreateRoutingRule, useUpdateRoutingRule, useDeleteRoutingRule, useReorderRoutingRules, useTestRouting, useCampaigns, useSyncFromInstantly, useExampleContacts } from "@/hooks/useApi";
 import type { MessageTemplate, ApifyScraperSettings, ApolloScraperSettings, PipelineControlSettings, ScheduleTemplate, ScheduleSettings, CampaignRoutingRule, CreateRoutingRuleInput, UpdateRoutingRuleInput, RoutingMatchMode } from "@/types/api";
 
 // Job definitions - these map to pipeline control settings
@@ -70,6 +71,7 @@ const RoutingRulesTab = () => {
   const { data: rulesData, isLoading: rulesLoading } = useRoutingRules();
   const { data: filterOptionsData } = useRoutingFilterOptions();
   const { data: campaignsData, refetch: refetchCampaigns } = useCampaigns({ channel: 'EMAIL' });
+  const { data: exampleContactsData } = useExampleContacts(10);
   
   const createRule = useCreateRoutingRule();
   const updateRule = useUpdateRoutingRule();
@@ -81,6 +83,7 @@ const RoutingRulesTab = () => {
   const rules = rulesData?.data || [];
   const filterOptions = filterOptionsData?.data;
   const campaigns = campaignsData?.data || [];
+  const exampleContacts = exampleContactsData?.data || [];
   
   // Track if we've already synced this session
   const [hasSynced, setHasSynced] = useState(false);
@@ -89,6 +92,7 @@ const RoutingRulesTab = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingRule, setEditingRule] = useState<CampaignRoutingRule | null>(null);
   const [testContactId, setTestContactId] = useState('');
+  const [showExampleDropdown, setShowExampleDropdown] = useState(false);
   
   // Form state for create/edit
   const [formData, setFormData] = useState<CreateRoutingRuleInput>({
@@ -238,7 +242,7 @@ const RoutingRulesTab = () => {
     return parts.length > 0 ? parts.join(' • ') : 'No filters (matches all)';
   };
   
-  // Multi-select helper component
+  // Multi-select helper component with custom value support
   const MultiSelect = ({ 
     label, 
     options, 
@@ -249,39 +253,82 @@ const RoutingRulesTab = () => {
     options: string[]; 
     selected: string[]; 
     onChange: (values: string[]) => void;
-  }) => (
-    <div className="space-y-2">
-      <Label className="text-sm">{label}</Label>
-      <div className="flex flex-wrap gap-2 p-2 border rounded-lg bg-muted/30 min-h-[40px]">
-        {selected.map(value => (
-          <Badge key={value} variant="secondary" className="gap-1">
-            {value}
-            <X 
-              className="w-3 h-3 cursor-pointer" 
-              onClick={() => onChange(selected.filter(v => v !== value))}
-            />
-          </Badge>
-        ))}
-        <Select
-          value=""
-          onValueChange={(value) => {
-            if (value && !selected.includes(value)) {
-              onChange([...selected, value]);
-            }
-          }}
-        >
-          <SelectTrigger className="w-auto h-6 border-0 bg-transparent text-xs">
-            <Plus className="w-3 h-3" />
-          </SelectTrigger>
-          <SelectContent>
-            {options.filter(o => !selected.includes(o)).map(option => (
-              <SelectItem key={option} value={option}>{option}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+  }) => {
+    const [customValue, setCustomValue] = useState('');
+    
+    const addCustomValue = () => {
+      const trimmedValue = customValue.trim();
+      if (trimmedValue && !selected.includes(trimmedValue)) {
+        onChange([...selected, trimmedValue]);
+        setCustomValue('');
+      }
+    };
+    
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addCustomValue();
+      }
+    };
+    
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm">{label}</Label>
+        <div className="flex flex-wrap gap-2 p-2 border rounded-lg bg-muted/30 min-h-[40px]">
+          {selected.map(value => (
+            <Badge key={value} variant="secondary" className="gap-1">
+              {value}
+              <X 
+                className="w-3 h-3 cursor-pointer" 
+                onClick={() => onChange(selected.filter(v => v !== value))}
+              />
+            </Badge>
+          ))}
+          
+          {/* Predefined options dropdown */}
+          <Select
+            value=""
+            onValueChange={(value) => {
+              if (value && !selected.includes(value)) {
+                onChange([...selected, value]);
+              }
+            }}
+          >
+            <SelectTrigger className="w-auto h-6 border-0 bg-transparent text-xs">
+              <Plus className="w-3 h-3" />
+            </SelectTrigger>
+            <SelectContent>
+              {options.filter(o => !selected.includes(o)).map(option => (
+                <SelectItem key={option} value={option}>{option}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Custom value input */}
+        <div className="flex gap-2">
+          <Input
+            placeholder="Type custom value..."
+            value={customValue}
+            onChange={(e) => setCustomValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="flex-1 h-8 text-sm"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addCustomValue}
+            disabled={!customValue.trim()}
+            className="h-8"
+          >
+            <Plus className="w-3 h-3 mr-1" />
+            Add
+          </Button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
   
   return (
     <div className="space-y-6">
@@ -435,17 +482,47 @@ const RoutingRulesTab = () => {
             Test Routing
           </CardTitle>
           <CardDescription>
-            Enter a contact ID to see which campaign they would be routed to
+            Enter a contact ID or select an example contact to see which campaign they would be routed to
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="space-y-4">
           <div className="flex gap-4">
+              <div className="flex-1 relative">
             <Input
               placeholder="Enter contact ID..."
               value={testContactId}
               onChange={(e) => setTestContactId(e.target.value)}
-              className="flex-1"
-            />
+                  onFocus={() => setShowExampleDropdown(true)}
+                />
+                
+                {/* Example Contacts Dropdown */}
+                {showExampleDropdown && exampleContacts.length > 0 && (
+                  <div className="absolute z-50 w-full bottom-full mb-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-auto">
+                    <div className="p-2 text-xs text-muted-foreground border-b">
+                      Example Contacts
+                    </div>
+                    {exampleContacts.map((contact: any) => (
+                      <button
+                        key={contact.id}
+                        className="w-full text-left px-3 py-2 hover:bg-accent text-sm flex flex-col gap-1"
+                        onClick={() => {
+                          setTestContactId(contact.id);
+                          setShowExampleDropdown(false);
+                        }}
+                      >
+                        <div className="font-medium">{contact.label}</div>
+                        <div className="text-xs text-muted-foreground flex gap-2 flex-wrap">
+                          {contact.source && <span>Source: {contact.source}</span>}
+                          {contact.industry && <span>• Industry: {contact.industry}</span>}
+                          {contact.tags.length > 0 && <span>• Tags: {contact.tags.join(', ')}</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
             <Button 
               onClick={handleTestRouting}
               disabled={testRouting.isPending || !testContactId}
@@ -457,6 +534,15 @@ const RoutingRulesTab = () => {
               )}
               Test
             </Button>
+            </div>
+            
+            {/* Close dropdown when clicking outside */}
+            {showExampleDropdown && (
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setShowExampleDropdown(false)}
+              />
+            )}
           </div>
         </CardContent>
       </Card>
@@ -497,7 +583,7 @@ const RoutingRulesTab = () => {
                     value={formData.campaignId}
                     onValueChange={(value) => setFormData({ ...formData, campaignId: value })}
                   >
-                    <SelectTrigger className="flex-1">
+                    <SelectTrigger className="flex-1" id="ruleCampaign">
                       <SelectValue placeholder="Select campaign" />
                     </SelectTrigger>
                     <SelectContent>
@@ -688,7 +774,8 @@ const RoutingRulesTab = () => {
 
 export const Settings = () => {
   const { toast } = useToast();
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const { theme, setTheme } = useTheme();
+  const isDarkMode = theme === 'dark';
   
   // API hooks
   const { data: settingsData, isLoading: settingsLoading } = useSettings();
@@ -828,12 +915,11 @@ export const Settings = () => {
   };
 
   const handleToggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    // In a real implementation, this would update the theme
-    document.documentElement.classList.toggle('dark', !isDarkMode);
+    const newTheme = isDarkMode ? 'light' : 'dark';
+    setTheme(newTheme);
     toast({
       title: `Theme changed`,
-      description: `Switched to ${!isDarkMode ? 'dark' : 'light'} mode.`
+      description: `Switched to ${newTheme} mode.`
     });
   };
 
@@ -1312,7 +1398,7 @@ export const Settings = () => {
                             <div key={key} className="space-y-1">
                               <Label className="text-sm">{label}</Label>
                               <Input
-                                value={customCrons[key as keyof typeof customCrons] || scheduleSettings[key as keyof ScheduleSettings] || ''}
+                                value={customCrons[key as keyof typeof customCrons] || (typeof scheduleSettings?.[key as keyof ScheduleSettings] === 'string' ? scheduleSettings[key as keyof ScheduleSettings] as string : '') || ''}
                                 onChange={(e) => setCustomCrons(prev => ({ ...prev, [key]: e.target.value }))}
                                 placeholder="0 6 * * *"
                                 className="font-mono text-sm"
@@ -1568,7 +1654,7 @@ export const Settings = () => {
                         value={(apifyForm.searchTerms || []).join('\n')}
                         onChange={(e) => setApifyForm({ 
                           ...apifyForm, 
-                          searchTerms: e.target.value.split('\n').map(t => t.trim()).filter(Boolean) 
+                          searchTerms: e.target.value.split('\n')
                         })}
                       />
                       <p className="text-xs text-muted-foreground">
@@ -1588,7 +1674,7 @@ export const Settings = () => {
                           value={(apifyForm.locations || []).join('\n')}
                           onChange={(e) => setApifyForm({ 
                             ...apifyForm, 
-                            locations: e.target.value.split('\n').map(t => t.trim()).filter(Boolean) 
+                            locations: e.target.value.split('\n')
                           })}
                         />
                         <p className="text-xs text-muted-foreground">
@@ -1606,7 +1692,7 @@ export const Settings = () => {
                           value={(apifyForm.industries || []).join('\n')}
                           onChange={(e) => setApifyForm({ 
                             ...apifyForm, 
-                            industries: e.target.value.split('\n').map(t => t.trim()).filter(Boolean) 
+                            industries: e.target.value.split('\n')
                           })}
                         />
                         <p className="text-xs text-muted-foreground">
@@ -1797,7 +1883,16 @@ export const Settings = () => {
                         Reset
                       </Button>
                       <Button 
-                        onClick={() => updateApifySettings.mutate(apifyForm)} 
+                        onClick={() => {
+                          // Clean up data before saving
+                          const cleanedSettings = {
+                            ...apifyForm,
+                            searchTerms: apifyForm.searchTerms?.map(t => t.trim()).filter(Boolean) || [],
+                            locations: apifyForm.locations?.map(t => t.trim()).filter(Boolean) || [],
+                            industries: apifyForm.industries?.map(t => t.trim()).filter(Boolean) || [],
+                          };
+                          updateApifySettings.mutate(cleanedSettings);
+                        }} 
                         disabled={updateApifySettings.isPending || !apifyForm.searchTerms?.length || !apifyForm.locations?.length || !apifyForm.industries?.length}
                         className="gap-2"
                       >
@@ -1899,45 +1994,45 @@ export const Settings = () => {
                         </Label>
                         <Textarea
                         id="apolloPersonTitles"
-                          placeholder="Owner, CEO, President, COO, General Manager (comma-separated)"
-                          rows={2}
-                          value={(apolloForm.personTitles || []).join(', ')}
+                          placeholder="Owner&#10;CEO&#10;President&#10;COO&#10;General Manager"
+                          rows={3}
+                          value={(apolloForm.personTitles || []).join('\n')}
                         onChange={(e) => setApolloForm({ 
                           ...apolloForm, 
-                          personTitles: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                          personTitles: e.target.value.split('\n')
                         })}
                       />
-                        <p className="text-xs text-muted-foreground">Job titles to target (comma-separated)</p>
+                        <p className="text-xs text-muted-foreground">Job titles to target (one per line)</p>
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="apolloPersonLocations">Person Locations (Optional)</Label>
                         <Textarea
                           id="apolloPersonLocations"
-                          placeholder="United States, California (comma-separated)"
-                          rows={2}
-                          value={apolloForm.personLocations?.join(', ') || ''}
+                          placeholder="United States&#10;California&#10;Texas"
+                          rows={3}
+                          value={apolloForm.personLocations?.join('\n') || ''}
                           onChange={(e) => setApolloForm({ 
                             ...apolloForm, 
-                            personLocations: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                            personLocations: e.target.value.split('\n')
                           })}
                         />
-                        <p className="text-xs text-muted-foreground">Filter by person's location</p>
+                        <p className="text-xs text-muted-foreground">Filter by person's location (one per line)</p>
                       </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="apolloPersonSeniorities">Person Seniorities (Optional)</Label>
                         <Textarea
                           id="apolloPersonSeniorities"
-                          placeholder="owner, c_suite, vp, director (comma-separated)"
-                          rows={2}
-                          value={apolloForm.personSeniorities?.join(', ') || ''}
+                          placeholder="owner&#10;c_suite&#10;vp&#10;director&#10;manager"
+                          rows={3}
+                          value={apolloForm.personSeniorities?.join('\n') || ''}
                           onChange={(e) => setApolloForm({ 
                             ...apolloForm, 
-                            personSeniorities: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                            personSeniorities: e.target.value.split('\n')
                           })}
                         />
-                        <p className="text-xs text-muted-foreground">Seniority levels (owner, c_suite, vp, director, manager)</p>
+                        <p className="text-xs text-muted-foreground">Seniority levels (one per line)</p>
                       </div>
                     </div>
 
@@ -1951,30 +2046,30 @@ export const Settings = () => {
                         </Label>
                         <Textarea
                         id="apolloLocations"
-                          placeholder="United States, Texas, California (comma-separated)"
-                          rows={2}
-                          value={(apolloForm.locations || []).join(', ')}
+                          placeholder="United States&#10;Texas&#10;California"
+                          rows={3}
+                          value={(apolloForm.locations || []).join('\n')}
                         onChange={(e) => setApolloForm({ 
                           ...apolloForm, 
-                          locations: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                          locations: e.target.value.split('\n')
                         })}
                       />
-                        <p className="text-xs text-muted-foreground">Organization locations (countries, states, cities)</p>
+                        <p className="text-xs text-muted-foreground">Organization locations - one per line (countries, states, cities)</p>
                       </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="apolloExcludeLocations">Exclude Locations (Optional)</Label>
                         <Textarea
                           id="apolloExcludeLocations"
-                          placeholder="New York, California (comma-separated)"
-                          rows={2}
-                          value={apolloForm.excludeLocations?.join(', ') || ''}
+                          placeholder="New York&#10;California"
+                          rows={3}
+                          value={apolloForm.excludeLocations?.join('\n') || ''}
                           onChange={(e) => setApolloForm({ 
                             ...apolloForm, 
-                            excludeLocations: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                            excludeLocations: e.target.value.split('\n')
                           })}
                         />
-                        <p className="text-xs text-muted-foreground">Locations to exclude</p>
+                        <p className="text-xs text-muted-foreground">Locations to exclude (one per line)</p>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1982,29 +2077,29 @@ export const Settings = () => {
                           <Label htmlFor="apolloOrganizationKeywordTags">Positive Keyword Tags</Label>
                           <Textarea
                             id="apolloOrganizationKeywordTags"
-                            placeholder="commercial, residential (comma-separated)"
-                            rows={2}
-                            value={apolloForm.organizationKeywordTags?.join(', ') || ''}
+                            placeholder="commercial&#10;residential&#10;industrial"
+                            rows={3}
+                            value={apolloForm.organizationKeywordTags?.join('\n') || ''}
                             onChange={(e) => setApolloForm({ 
                               ...apolloForm, 
-                              organizationKeywordTags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                              organizationKeywordTags: e.target.value.split('\n')
                             })}
                           />
-                          <p className="text-xs text-muted-foreground">Must-have keywords</p>
+                          <p className="text-xs text-muted-foreground">Must-have keywords (one per line)</p>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="apolloNegativeKeywordTags">Negative Keyword Tags</Label>
                           <Textarea
                             id="apolloNegativeKeywordTags"
-                            placeholder="supplier, wholesale (comma-separated)"
-                            rows={2}
-                            value={apolloForm.negativeKeywordTags?.join(', ') || ''}
+                            placeholder="supplier&#10;wholesale&#10;distributor"
+                            rows={3}
+                            value={apolloForm.negativeKeywordTags?.join('\n') || ''}
                             onChange={(e) => setApolloForm({ 
                               ...apolloForm, 
-                              negativeKeywordTags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                              negativeKeywordTags: e.target.value.split('\n')
                             })}
                           />
-                          <p className="text-xs text-muted-foreground">Keywords to exclude</p>
+                          <p className="text-xs text-muted-foreground">Keywords to exclude (one per line)</p>
                         </div>
                       </div>
 
@@ -2012,15 +2107,15 @@ export const Settings = () => {
                         <Label htmlFor="apolloTechnologies">Technologies (Optional)</Label>
                         <Textarea
                           id="apolloTechnologies"
-                          placeholder="Salesforce, HubSpot (comma-separated)"
-                          rows={2}
-                          value={apolloForm.technologies?.join(', ') || ''}
+                          placeholder="Salesforce&#10;HubSpot&#10;ServiceTitan"
+                          rows={3}
+                          value={apolloForm.technologies?.join('\n') || ''}
                           onChange={(e) => setApolloForm({ 
                             ...apolloForm, 
-                            technologies: e.target.value.split(',').map(t => t.trim()).filter(Boolean) 
+                            technologies: e.target.value.split('\n')
                           })}
                         />
-                        <p className="text-xs text-muted-foreground">Tech stack filters</p>
+                        <p className="text-xs text-muted-foreground">Tech stack filters (one per line)</p>
                       </div>
                     </div>
 
@@ -2185,7 +2280,22 @@ export const Settings = () => {
                         Reset
                       </Button>
                       <Button 
-                        onClick={() => updateApolloSettings.mutate(apolloForm)} 
+                        onClick={() => {
+                          // Clean up data before saving
+                          const cleanedSettings = {
+                            ...apolloForm,
+                            personTitles: apolloForm.personTitles?.map(t => t.trim()).filter(Boolean) || [],
+                            locations: apolloForm.locations?.map(t => t.trim()).filter(Boolean) || [],
+                            excludeLocations: apolloForm.excludeLocations?.map(t => t.trim()).filter(Boolean) || [],
+                            personLocations: apolloForm.personLocations?.map(t => t.trim()).filter(Boolean) || [],
+                            personSeniorities: apolloForm.personSeniorities?.map(t => t.trim()).filter(Boolean) || [],
+                            organizationKeywordTags: apolloForm.organizationKeywordTags?.map(t => t.trim()).filter(Boolean) || [],
+                            negativeKeywordTags: apolloForm.negativeKeywordTags?.map(t => t.trim()).filter(Boolean) || [],
+                            technologies: apolloForm.technologies?.map(t => t.trim()).filter(Boolean) || [],
+                            industryTagIds: apolloForm.industryTagIds?.map(t => t.trim()).filter(Boolean) || [],
+                          };
+                          updateApolloSettings.mutate(cleanedSettings);
+                        }} 
                         disabled={updateApolloSettings.isPending || !apolloForm.industry || !apolloForm.locations?.length || !apolloForm.personTitles?.length || !apolloForm.searchKeywords}
                         className="gap-2"
                       >

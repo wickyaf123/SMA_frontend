@@ -45,6 +45,7 @@ import type {
   UpdateRoutingRuleInput,
   RoutingFilterOptions,
   RoutingTestResult,
+  ExampleContact,
 } from '@/types/api';
 
 // ==================== QUERY KEYS ====================
@@ -74,8 +75,10 @@ export const queryKeys = {
       ['campaigns', 'enrollments', id, params] as const,
     outreachStats: ['campaigns', 'outreach-stats'] as const,
     routingRules: ['campaigns', 'routing-rules'] as const,
-    routingFilterOptions: ['campaigns', 'routing-filter-options'] as const,
   },
+  
+  // Routing filter options - separate namespace to prevent invalidation during campaign sync
+  routingFilterOptions: ['routing-filter-options'] as const,
   
   settings: ['settings'] as const,
   
@@ -497,13 +500,13 @@ export function useOutreachStats() {
 }
 
 export function useSyncFromInstantly() {
-  const queryClient = useQueryClient();
   const { toast } = useToast();
   
   return useMutation({
     mutationFn: () => api.campaigns.syncFromInstantly(),
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all });
+      // Don't auto-invalidate here - let the caller handle refetch
+      // This prevents dropdowns from closing during sync
       const { created, updated } = response.data;
       toast({
         title: 'Campaigns synced from Instantly',
@@ -1185,9 +1188,18 @@ export function useRoutingRules(params?: { isActive?: boolean; campaignId?: stri
 
 export function useRoutingFilterOptions() {
   return useQuery({
-    queryKey: queryKeys.campaigns.routingFilterOptions,
+    queryKey: queryKeys.routingFilterOptions,
     queryFn: () => api.campaigns.routingRules.filterOptions(),
-    staleTime: 300000, // 5 minutes
+    staleTime: 0, // Force fresh fetch every time to ensure predefined values are loaded
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
+  });
+}
+
+export function useExampleContacts(limit?: number) {
+  return useQuery({
+    queryKey: ['campaigns', 'routing-rules', 'example-contacts', limit],
+    queryFn: () => api.campaigns.routingRules.getExampleContacts(limit),
+    staleTime: 60000, // 1 minute
   });
 }
 
