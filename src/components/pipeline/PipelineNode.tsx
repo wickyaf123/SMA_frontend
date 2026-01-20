@@ -50,26 +50,26 @@ export const PipelineNode = ({ node, isSelected, onClick }: PipelineNodeProps) =
       <div className="flex items-start gap-3">
         {/* Icon */}
         <div className={cn(
-          "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
+          "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg transition-all duration-300 group-hover:scale-110",
           colorMap[node.color]
         )}>
-          <Icon className="w-5 h-5 text-white" />
+          <Icon className="w-6 h-6 text-white" />
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="font-semibold text-foreground truncate">{node.title}</h3>
-            <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-secondary rounded">
-              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+            <h3 className="font-bold text-foreground truncate">{node.title}</h3>
+            <button className="opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-primary/10 rounded-lg">
+              <MoreHorizontal className="w-4 h-4 text-muted-foreground hover:text-primary" />
             </button>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">{node.subtitle}</p>
+          <p className="text-sm text-muted-foreground mt-1 font-medium">{node.subtitle}</p>
           
           {node.stats && (
             <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">{node.stats.label}</span>
-              <span className="text-sm font-semibold text-foreground">{node.stats.value}</span>
+              <span className="text-xs text-muted-foreground font-medium">{node.stats.label}</span>
+              <span className="text-sm font-bold text-foreground">{node.stats.value}</span>
             </div>
           )}
         </div>
@@ -78,16 +78,16 @@ export const PipelineNode = ({ node, isSelected, onClick }: PipelineNodeProps) =
       {/* Status indicator */}
       <div className="absolute -right-1 -top-1">
         {node.status === "active" && (
-          <span className="flex h-3 w-3">
+          <span className="flex h-4 w-4">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-primary shadow-lg shadow-primary/50"></span>
           </span>
         )}
         {node.status === "completed" && (
-          <span className="h-3 w-3 rounded-full bg-success block" />
+          <span className="h-4 w-4 rounded-full bg-success block shadow-lg shadow-success/50" />
         )}
         {node.status === "error" && (
-          <span className="h-3 w-3 rounded-full bg-destructive block" />
+          <span className="h-4 w-4 rounded-full bg-destructive block shadow-lg shadow-destructive/50" />
         )}
       </div>
     </div>

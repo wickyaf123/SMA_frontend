@@ -146,55 +146,59 @@ export const Campaigns = ({ onNavigateToSettings }: CampaignsProps = {}) => {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Users className="w-5 h-5 text-primary" />
+        <div className="bg-card border border-border rounded-2xl p-5 hover:border-primary/40 transition-all relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-primary/5 opacity-50" />
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Users className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-3xl font-bold text-foreground tracking-tight">
                 {totalInSequence.toLocaleString()}
               </p>
-              <p className="text-sm text-muted-foreground">In Active Sequences</p>
+              <p className="text-sm text-muted-foreground font-medium">In Active Sequences</p>
             </div>
           </div>
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-node-outreach/10 flex items-center justify-center">
-              <Send className="w-5 h-5 text-node-outreach" />
+        <div className="bg-card border border-border rounded-2xl p-5 hover:border-primary/40 transition-all relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-primary/5 opacity-50" />
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Send className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-3xl font-bold text-foreground tracking-tight">
                 {totalMessagesSent.toLocaleString()}
               </p>
-              <p className="text-sm text-muted-foreground">Total Messages Sent</p>
+              <p className="text-sm text-muted-foreground font-medium">Total Messages Sent</p>
             </div>
           </div>
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-node-reply/10 flex items-center justify-center">
-              <MessageSquare className="w-5 h-5 text-node-reply" />
+        <div className="bg-card border border-border rounded-2xl p-5 hover:border-success/40 transition-all relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-success/5 opacity-50" />
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
+              <MessageSquare className="w-6 h-6 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-3xl font-bold text-foreground tracking-tight">
                 {totalReplied.toLocaleString()}
               </p>
-              <p className="text-sm text-muted-foreground">Total Replies</p>
+              <p className="text-sm text-muted-foreground font-medium">Total Replies</p>
             </div>
           </div>
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-success" />
+        <div className="bg-card border border-border rounded-2xl p-5 hover:border-warning/40 transition-all relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-warning/5 opacity-50" />
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-warning" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-3xl font-bold text-foreground tracking-tight">
                 {overallReplyRate.toFixed(1)}%
               </p>
-              <p className="text-sm text-muted-foreground">Overall Reply Rate</p>
+              <p className="text-sm text-muted-foreground font-medium">Overall Reply Rate</p>
             </div>
           </div>
         </div>

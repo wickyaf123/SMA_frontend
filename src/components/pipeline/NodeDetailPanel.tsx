@@ -150,22 +150,22 @@ export const NodeDetailPanel = ({ node, onClose }: NodeDetailPanelProps) => {
   return (
     <div className="w-96 bg-card border-l border-border flex flex-col animate-fade-in">
       {/* Header */}
-      <div className="p-4 border-b border-border">
+      <div className="p-6 border-b border-border bg-gradient-to-br from-card to-primary/5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-node-${node.color}`}>
-              <Icon className="w-5 h-5 text-white" />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-node-${node.color} shadow-purple-glow`}>
+              <Icon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">{node.title}</h3>
-              <p className="text-sm text-muted-foreground">{node.subtitle}</p>
+              <h3 className="font-bold text-foreground text-lg">{node.title}</h3>
+              <p className="text-sm text-muted-foreground font-medium">{node.subtitle}</p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-secondary rounded-lg transition-colors"
+            className="p-2 hover:bg-primary/10 rounded-xl transition-colors"
           >
-            <X className="w-5 h-5 text-muted-foreground" />
+            <X className="w-5 h-5 text-muted-foreground hover:text-primary" />
           </button>
         </div>
         <p className="text-sm text-muted-foreground">{description}</p>
@@ -188,11 +188,11 @@ export const NodeDetailPanel = ({ node, onClose }: NodeDetailPanelProps) => {
         <TabsContent value="metrics" className="flex-1 p-4 mt-0">
           <div className="grid grid-cols-2 gap-3">
             {metrics.map((metric, index) => (
-              <div key={index} className="p-3 bg-secondary/50 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">{metric.label}</p>
-                <p className="text-lg font-semibold text-foreground">{metric.value}</p>
+              <div key={index} className="p-4 bg-gradient-to-br from-secondary/50 to-primary/5 border border-border rounded-xl hover:border-primary/30 transition-all">
+                <p className="text-xs text-muted-foreground mb-1 font-medium">{metric.label}</p>
+                <p className="text-xl font-bold text-foreground">{metric.value}</p>
                 {metric.change && (
-                  <p className="text-xs text-success mt-1">{metric.change}</p>
+                  <p className="text-xs text-success mt-1 font-medium">{metric.change}</p>
                 )}
               </div>
             ))}
@@ -202,10 +202,10 @@ export const NodeDetailPanel = ({ node, onClose }: NodeDetailPanelProps) => {
         <TabsContent value="activity" className="flex-1 p-4 mt-0 overflow-auto">
           <div className="space-y-3">
             {logs.map((log, index) => (
-              <div key={index} className="flex gap-3 p-3 bg-secondary/30 rounded-lg">
+              <div key={index} className="flex gap-3 p-3 bg-gradient-to-br from-secondary/30 to-primary/5 border border-border rounded-xl">
                 {getLogIcon(log.type)}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground">{log.message}</p>
+                  <p className="text-sm text-foreground font-medium">{log.message}</p>
                   <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     {log.time}

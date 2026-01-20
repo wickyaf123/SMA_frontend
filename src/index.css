@@ -51,7 +51,7 @@
     --input: 210 20% 90%;
     --ring: 190 70% 45%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     /* Canvas/Pipeline area */
     --canvas: 210 25% 97%;
@@ -77,72 +77,72 @@
   }
 
   .dark {
-    /* Core backgrounds - dark theme */
-    --background: 220 20% 10%;
-    --foreground: 210 20% 95%;
+    /* Core backgrounds - pure black theme */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 95%;
 
-    /* Cards and surfaces */
-    --card: 220 20% 13%;
-    --card-foreground: 210 20% 95%;
+    /* Cards and surfaces - very dark with subtle variation */
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 220 20% 13%;
-    --popover-foreground: 210 20% 95%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 95%;
 
-    /* Primary - Keep teal/cyan but adjust for dark */
-    --primary: 190 70% 50%;
-    --primary-foreground: 220 20% 10%;
+    /* Primary - Purple accent */
+    --primary: 270 80% 60%;
+    --primary-foreground: 0 0% 100%;
 
     /* Secondary */
-    --secondary: 220 20% 18%;
-    --secondary-foreground: 210 20% 90%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 90%;
 
     /* Muted surfaces */
-    --muted: 220 20% 16%;
-    --muted-foreground: 220 10% 65%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 60%;
 
-    /* Accent */
-    --accent: 220 20% 18%;
-    --accent-foreground: 190 70% 60%;
+    /* Accent - Lavender/Light purple */
+    --accent: 280 70% 65%;
+    --accent-foreground: 0 0% 100%;
 
-    /* Status colors - slightly brighter for dark mode */
-    --success: 152 65% 50%;
-    --success-foreground: 220 20% 10%;
+    /* Status colors - adjusted for black background */
+    --success: 152 65% 55%;
+    --success-foreground: 0 0% 100%;
     
-    --warning: 38 95% 60%;
-    --warning-foreground: 220 20% 10%;
+    --warning: 45 95% 60%;
+    --warning-foreground: 0 0% 10%;
     
     --destructive: 0 72% 60%;
-    --destructive-foreground: 210 20% 95%;
+    --destructive-foreground: 0 0% 100%;
 
     --info: 210 85% 60%;
-    --info-foreground: 220 20% 10%;
+    --info-foreground: 0 0% 100%;
 
-    /* Borders */
-    --border: 220 20% 25%;
-    --input: 220 20% 25%;
-    --ring: 190 70% 50%;
+    /* Borders - subtle on black */
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 270 80% 60%;
 
-    /* Canvas/Pipeline area */
-    --canvas: 220 20% 11%;
-    --canvas-dot: 220 20% 20%;
-    --node-connector: 220 20% 25%;
+    /* Canvas/Pipeline area - pure black */
+    --canvas: 0 0% 3%;
+    --canvas-dot: 0 0% 12%;
+    --node-connector: 270 40% 40%;
 
-    /* Sidebar */
-    --sidebar-background: 220 20% 13%;
-    --sidebar-foreground: 210 20% 80%;
-    --sidebar-primary: 190 70% 50%;
-    --sidebar-primary-foreground: 220 20% 10%;
-    --sidebar-accent: 220 20% 18%;
-    --sidebar-accent-foreground: 190 70% 60%;
-    --sidebar-border: 220 20% 22%;
-    --sidebar-ring: 190 70% 50%;
+    /* Sidebar - pure black */
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 0 0% 75%;
+    --sidebar-primary: 270 80% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 270 60% 15%;
+    --sidebar-accent-foreground: 270 80% 70%;
+    --sidebar-border: 0 0% 12%;
+    --sidebar-ring: 270 80% 60%;
 
-    /* Pipeline node colors - adjusted for dark mode */
-    --node-ingestion: 210 85% 60%;
-    --node-validation: 280 65% 60%;
-    --node-outreach: 190 70% 50%;
-    --node-reply: 38 95% 60%;
-    --node-crm: 152 65% 50%;
+    /* Pipeline node colors - purple spectrum */
+    --node-ingestion: 250 80% 60%;
+    --node-validation: 270 80% 60%;
+    --node-outreach: 290 75% 65%;
+    --node-reply: 45 95% 60%;
+    --node-crm: 152 65% 55%;
   }
 }
 
@@ -155,6 +155,15 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+    letter-spacing: -0.02em;
+  }
+
+  h1 { @apply text-3xl lg:text-4xl; }
+  h2 { @apply text-2xl lg:text-3xl; }
+  h3 { @apply text-xl lg:text-2xl; }
 }
 
 @layer components {
@@ -165,14 +174,32 @@
     background-color: hsl(var(--canvas));
   }
 
+  /* Enhanced card with gradient and glass-morphism */
+  .glass-card {
+    @apply relative bg-card border border-border rounded-2xl p-6 shadow-lg transition-all duration-300;
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(0 0% 8%) 100%);
+    backdrop-filter: blur(10px);
+  }
+
+  .glass-card:hover {
+    @apply border-primary/40;
+    box-shadow: 0 8px 32px -8px hsl(var(--primary) / 0.3), 0 0 0 1px hsl(var(--primary) / 0.1);
+  }
+
   /* Pipeline node base styles */
   .pipeline-node {
-    @apply relative bg-card border border-border rounded-xl p-4 shadow-sm transition-all duration-200;
-    @apply hover:shadow-md hover:border-primary/30;
+    @apply relative bg-card border border-border rounded-2xl p-4 shadow-sm transition-all duration-300;
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(0 0% 8%) 100%);
+  }
+
+  .pipeline-node:hover {
+    @apply border-primary/30;
+    box-shadow: 0 4px 20px -4px hsl(var(--primary) / 0.25);
   }
 
   .pipeline-node.active {
-    @apply ring-2 ring-primary ring-offset-2 ring-offset-background;
+    @apply ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50;
+    box-shadow: 0 8px 32px -8px hsl(var(--primary) / 0.4);
   }
 
   /* Connector lines */
@@ -182,41 +209,44 @@
 
   .connector-dot {
     @apply w-2 h-2 rounded-full bg-primary;
+    box-shadow: 0 0 8px hsl(var(--primary) / 0.6);
   }
 
   /* Status badge styles */
   .status-badge {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium;
+    backdrop-filter: blur(8px);
   }
 
   .status-badge.success {
-    @apply bg-success/15 text-success;
+    @apply bg-success/20 text-success border border-success/30;
   }
 
   .status-badge.warning {
-    @apply bg-warning/15 text-warning;
+    @apply bg-warning/20 text-warning border border-warning/30;
   }
 
   .status-badge.error {
-    @apply bg-destructive/15 text-destructive;
+    @apply bg-destructive/20 text-destructive border border-destructive/30;
   }
 
   .status-badge.info {
-    @apply bg-info/15 text-info;
+    @apply bg-info/20 text-info border border-info/30;
   }
 
   .status-badge.pending {
-    @apply bg-muted text-muted-foreground;
+    @apply bg-muted text-muted-foreground border border-border;
   }
 
   /* Sidebar navigation item */
   .nav-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors;
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200;
     @apply text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
   }
 
   .nav-item.active {
     @apply bg-sidebar-accent text-sidebar-primary font-semibold;
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.15);
   }
 
   /* Smooth animations */
@@ -246,5 +276,65 @@
     50% {
       opacity: 0.7;
     }
+  }
+
+  /* Purple glow effect */
+  .purple-glow {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  }
+
+  .purple-glow-hover {
+    transition: box-shadow 0.3s ease;
+  }
+
+  .purple-glow-hover:hover {
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.5), 0 0 60px hsl(var(--primary) / 0.2);
+  }
+
+  /* Smooth fade-in animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-slow {
+    animation: fadeIn 0.6s ease-out;
+  }
+
+  /* Shimmer effect for loading states */
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      to right,
+      hsl(var(--card)) 0%,
+      hsl(var(--primary) / 0.1) 50%,
+      hsl(var(--card)) 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  /* Enhanced button states */
+  button, a {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Smooth transitions for all interactive elements */
+  * {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }

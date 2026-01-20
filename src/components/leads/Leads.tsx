@@ -94,7 +94,7 @@ import {
   sourceLabels 
 } from "@/types/api";
 
-type SortField = "fullName" | "company" | "status" | "createdAt";
+type SortField = "fullName" | "company" | "status" | "createdAt" | "googleRating";
 type SortDirection = "asc" | "desc";
 
 // Column visibility configuration
@@ -125,6 +125,7 @@ export const Leads = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [columnVisibility, setColumnVisibility] = useState<Record<ColumnKey, boolean>>(defaultColumnVisibility);
+  const [isAllPagesSelected, setIsAllPagesSelected] = useState(false);
   const itemsPerPage = 10;
 
   // Modal states
@@ -172,7 +173,8 @@ export const Leads = () => {
     status: statusFilter !== "all" ? [statusFilter as ContactStatus] : undefined,
     page: currentPage,
     limit: itemsPerPage,
-    sort: sortField,
+    // Use default sort (createdAt) for googleRating since it's client-side sorted
+    sort: sortField === "googleRating" ? "createdAt" : sortField,
     order: sortDirection,
   });
 
@@ -230,8 +232,22 @@ export const Leads = () => {
       }
     }
     
+    // Client-side sorting for Google Rating (since it's nested data)
+    if (sortField === "googleRating") {
+      filtered = [...filtered].sort((a, b) => {
+        const ratingA = a.enrichmentData && typeof a.enrichmentData === 'object' && 'rating' in a.enrichmentData 
+          ? Number(a.enrichmentData.rating) || 0 
+          : 0;
+        const ratingB = b.enrichmentData && typeof b.enrichmentData === 'object' && 'rating' in b.enrichmentData 
+          ? Number(b.enrichmentData.rating) || 0 
+          : 0;
+        
+        return sortDirection === "asc" ? ratingA - ratingB : ratingB - ratingA;
+      });
+    }
+    
     return filtered;
-  }, [contacts, sourceFilter, validationFilter]);
+  }, [contacts, sourceFilter, validationFilter, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -243,11 +259,24 @@ export const Leads = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.size === filteredContacts.length) {
+    if (selectedIds.size === filteredContacts.length && filteredContacts.length > 0) {
+      // Deselect all
       setSelectedIds(new Set());
+      setIsAllPagesSelected(false);
     } else {
+      // Select all visible on current page
       setSelectedIds(new Set(filteredContacts.map((c) => c.id)));
+      setIsAllPagesSelected(false);
     }
+  };
+
+  const handleSelectAllPages = () => {
+    setIsAllPagesSelected(true);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+    setIsAllPagesSelected(false);
   };
 
   const handleSelectOne = (id: string) => {
@@ -258,6 +287,7 @@ export const Leads = () => {
       newSet.add(id);
     }
     setSelectedIds(newSet);
+    setIsAllPagesSelected(false); // Deselect "all pages" when manually toggling
   };
 
   const handleCreateContact = async () => {
@@ -293,16 +323,27 @@ export const Leads = () => {
   };
 
   const handleEnroll = async () => {
-    if (!selectedCampaignId || selectedIds.size === 0) return;
+    if (!selectedCampaignId) return;
+    
+    let contactIds: string[];
+    if (isAllPagesSelected) {
+      contactIds = await fetchAllContactIds();
+    } else {
+      contactIds = Array.from(selectedIds);
+    }
+    
+    if (contactIds.length === 0) return;
+    
     await enrollContacts.mutateAsync({
       campaignId: selectedCampaignId,
       data: { 
-        contactIds: Array.from(selectedIds),
+        contactIds,
         options: enrollmentOptions,
       },
     });
     setIsEnrollOpen(false);
     setSelectedIds(new Set());
+    setIsAllPagesSelected(false);
     // Reset options to defaults
     setEnrollmentOptions({
       skipIfInWorkspace: false,
@@ -316,12 +357,57 @@ export const Leads = () => {
     }
   };
 
+  const fetchAllContactIds = async (): Promise<string[]> => {
+    // Fetch all contact IDs matching current filters
+    try {
+      const allContacts = await api.contacts.list({
+        search: search || undefined,
+        status: statusFilter !== "all" ? [statusFilter as ContactStatus] : undefined,
+        page: 1,
+        limit: pagination?.total || 10000, // Fetch all in one request
+        sort: sortField,
+        order: sortDirection,
+      });
+      
+      // Apply client-side filters (source and validation)
+      let filtered = allContacts.data;
+      
+      if (sourceFilter !== "all") {
+        filtered = filtered.filter((c) => c.source?.toLowerCase() === sourceFilter.toLowerCase());
+      }
+      
+      if (validationFilter !== "all") {
+        if (validationFilter.startsWith("email-")) {
+          const emailStatus = validationFilter.replace("email-", "");
+          filtered = filtered.filter((c) => c.emailValidationStatus === emailStatus);
+        } else if (validationFilter.startsWith("phone-")) {
+          const phoneStatus = validationFilter.replace("phone-", "");
+          filtered = filtered.filter((c) => c.phoneValidationStatus === phoneStatus);
+        }
+      }
+      
+      return filtered.map(c => c.id);
+    } catch (error) {
+      console.error('Failed to fetch all contact IDs:', error);
+      return [];
+    }
+  };
+
   const handleBulkDelete = async () => {
-    if (confirm(`Delete ${selectedIds.size} contacts?`)) {
-      for (const id of selectedIds) {
-        await deleteContact.mutateAsync(id);
+    const totalCount = isAllPagesSelected ? (pagination?.total || 0) : selectedIds.size;
+    if (confirm(`Delete ${totalCount} contacts?`)) {
+      if (isAllPagesSelected) {
+        const allIds = await fetchAllContactIds();
+        for (const id of allIds) {
+          await deleteContact.mutateAsync(id);
+        }
+      } else {
+        for (const id of selectedIds) {
+          await deleteContact.mutateAsync(id);
+        }
       }
       setSelectedIds(new Set());
+      setIsAllPagesSelected(false);
     }
   };
 
@@ -410,6 +496,38 @@ export const Leads = () => {
         </div>
       )}
 
+      {/* Select All Pages Banner */}
+      {selectedIds.size === filteredContacts.length && 
+       filteredContacts.length > 0 && 
+       !isAllPagesSelected && 
+       pagination && 
+       pagination.total > filteredContacts.length && (
+        <div className="flex items-center justify-between gap-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg animate-fade-in">
+          <div className="flex items-center gap-2">
+            <Check className="w-5 h-5 text-blue-500" />
+            <span className="text-sm text-foreground">
+              All {filteredContacts.length} contacts on this page are selected.
+            </span>
+            <Button
+              variant="link"
+              size="sm"
+              onClick={handleSelectAllPages}
+              className="h-auto p-0 text-blue-500 hover:text-blue-600"
+            >
+              Select all {pagination.total} contacts
+            </Button>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDeselectAll}
+            className="h-7"
+          >
+            Clear selection
+          </Button>
+        </div>
+      )}
+
       {/* Header Actions */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1">
@@ -423,13 +541,15 @@ export const Leads = () => {
               onChange={(e) => {
                 setSearch(e.target.value);
                 setCurrentPage(1);
+                setSelectedIds(new Set());
+                setIsAllPagesSelected(false);
               }}
               className="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
           {/* Filters */}
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); setSelectedIds(new Set()); setIsAllPagesSelected(false); }}>
             <SelectTrigger className="w-40 bg-card">
               <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Status" />
@@ -444,7 +564,7 @@ export const Leads = () => {
             </SelectContent>
           </Select>
 
-          <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setCurrentPage(1); }}>
+          <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setCurrentPage(1); setSelectedIds(new Set()); setIsAllPagesSelected(false); }}>
             <SelectTrigger className="w-36 bg-card">
               <SelectValue placeholder="Source" />
             </SelectTrigger>
@@ -458,7 +578,7 @@ export const Leads = () => {
             </SelectContent>
           </Select>
 
-          <Select value={validationFilter} onValueChange={(v) => { setValidationFilter(v); setCurrentPage(1); }}>
+          <Select value={validationFilter} onValueChange={(v) => { setValidationFilter(v); setCurrentPage(1); setSelectedIds(new Set()); setIsAllPagesSelected(false); }}>
             <SelectTrigger className="w-44 bg-card">
               <Check className="w-4 h-4 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Validation" />
@@ -776,7 +896,7 @@ export const Leads = () => {
           <DialogHeader>
             <DialogTitle>Enroll in Campaign</DialogTitle>
             <DialogDescription>
-              Add {selectedIds.size} contact(s) to a campaign
+              Add {isAllPagesSelected ? (pagination?.total || 0) : selectedIds.size} contact(s) to a campaign
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -875,7 +995,12 @@ export const Leads = () => {
             <Button variant="outline" onClick={() => setIsEnrollOpen(false)}>Cancel</Button>
             <Button 
               onClick={handleEnroll} 
-              disabled={enrollContacts.isPending || !selectedCampaignId || campaigns.length === 0}
+              disabled={
+                enrollContacts.isPending || 
+                !selectedCampaignId || 
+                campaigns.length === 0 || 
+                (!isAllPagesSelected && selectedIds.size === 0)
+              }
             >
               {enrollContacts.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Enroll Contacts
@@ -1145,10 +1270,13 @@ export const Leads = () => {
       </Dialog>
 
       {/* Bulk Actions */}
-      {selectedIds.size > 0 && (
+      {(selectedIds.size > 0 || isAllPagesSelected) && (
         <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg animate-fade-in">
           <span className="text-sm font-medium text-primary">
-            {selectedIds.size} selected
+            {isAllPagesSelected 
+              ? `All ${pagination?.total || 0} contacts selected`
+              : `${selectedIds.size} selected`
+            }
           </span>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setIsEnrollOpen(true)}>
@@ -1237,8 +1365,14 @@ export const Leads = () => {
                   </th>
                 )}
                 {columnVisibility.googleRating && (
-                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                    Google Rating
+                  <th className="p-4 text-left">
+                    <button
+                      onClick={() => handleSort("googleRating")}
+                      className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Google Rating
+                      <SortIcon field="googleRating" />
+                    </button>
                   </th>
                 )}
                 {columnVisibility.source && (

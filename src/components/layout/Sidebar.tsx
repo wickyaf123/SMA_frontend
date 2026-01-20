@@ -19,10 +19,27 @@ interface NavItemProps {
 const NavItem = ({ icon: Icon, label, active, onClick }: NavItemProps) => (
   <button
     onClick={onClick}
-    className={cn("nav-item w-full", active && "active")}
+    className={cn(
+      "nav-item w-full relative overflow-hidden",
+      active && "active"
+    )}
   >
-    <Icon className="w-5 h-5" />
-    <span>{label}</span>
+    {/* Purple glow for active state */}
+    {active && (
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent" />
+    )}
+    <div className={cn(
+      "relative flex items-center gap-3",
+      active && "text-primary"
+    )}>
+      <div className={cn(
+        "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300",
+        active ? "bg-primary/15 text-primary" : "bg-transparent text-sidebar-foreground"
+      )}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <span className="font-medium">{label}</span>
+    </div>
   </button>
 );
 
@@ -45,18 +62,18 @@ export const Sidebar = ({ activeSection, onSectionChange }: SidebarProps) => {
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <Zap className="w-5 h-5 text-primary-foreground" />
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-purple-glow">
+            <Zap className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-foreground">TLA Outreach App</h1>
+            <h1 className="font-bold text-lg text-foreground tracking-tight">TLA Outreach</h1>
             <p className="text-xs text-muted-foreground">Automation System</p>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-hidden">
+      <nav className="flex-1 p-4 space-y-2 overflow-hidden">
         {navItems.map((item) => (
           <NavItem
             key={item.id}

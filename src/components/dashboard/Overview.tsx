@@ -91,9 +91,9 @@ export const Overview = () => {
 
   // Channel distribution from real data
   const channelDistribution = outreach ? [
-    { name: "Email", value: outreach.email.sent, color: "hsl(190, 70%, 45%)" },
-    { name: "SMS", value: outreach.sms.sent, color: "hsl(280, 65%, 55%)" },
-    { name: "LinkedIn", value: outreach.linkedin.sent, color: "hsl(210, 85%, 55%)" },
+    { name: "Email", value: outreach.email.sent, color: "hsl(270, 80%, 60%)" },
+    { name: "SMS", value: outreach.sms.sent, color: "hsl(280, 75%, 65%)" },
+    { name: "LinkedIn", value: outreach.linkedin.sent, color: "hsl(250, 80%, 60%)" },
   ] : [];
 
   // Channel metrics from real data
@@ -198,11 +198,12 @@ export const Overview = () => {
       {/* Trends Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Outreach Trends Chart */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
+        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-primary/5 opacity-50" />
+          <div className="flex items-center justify-between mb-4 relative z-10">
             <div>
-              <h3 className="font-semibold text-foreground text-lg">Outreach Trends</h3>
-              <p className="text-sm text-muted-foreground">Messages sent by channel</p>
+              <h3 className="font-bold text-foreground text-xl">Outreach Trends</h3>
+              <p className="text-sm text-muted-foreground mt-1">Messages sent by channel</p>
               <p className="text-xs text-muted-foreground/70 italic mt-1">* Sample data - time-series tracking coming soon</p>
             </div>
             <Tabs defaultValue="weekly" className="w-auto">
@@ -216,86 +217,161 @@ export const Overview = () => {
           {/* Legend */}
           <div className="flex items-center gap-4 text-sm mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-node-outreach" />
+                <div className="w-3 h-3 rounded-full bg-primary" />
                 <span className="text-muted-foreground">Email</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-node-validation" />
+                <div className="w-3 h-1 bg-accent rounded-full" />
                 <span className="text-muted-foreground">SMS</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-node-ingestion" />
+                <div className="w-3 h-1 rounded-full" style={{ backgroundColor: 'hsl(250, 80%, 60%)' }} />
                 <span className="text-muted-foreground">LinkedIn</span>
               </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-node-reply" />
+              <div className="w-3 h-1 rounded-full" style={{ backgroundColor: 'hsl(45, 95%, 60%)' }} />
               <span className="text-muted-foreground">Replies</span>
             </div>
           </div>
 
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyTrendData} barGap={2}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                <XAxis dataKey="day" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+              <AreaChart data={weeklyTrendData}>
+                <defs>
+                  <linearGradient id="emailGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(270, 80%, 60%)" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="hsl(270, 80%, 60%)" stopOpacity={0.1}/>
+                  </linearGradient>
+                  <linearGradient id="smsGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(280, 75%, 65%)" stopOpacity={0.6}/>
+                    <stop offset="95%" stopColor="hsl(280, 75%, 65%)" stopOpacity={0.05}/>
+                  </linearGradient>
+                  <linearGradient id="linkedinGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(250, 80%, 60%)" stopOpacity={0.6}/>
+                    <stop offset="95%" stopColor="hsl(250, 80%, 60%)" stopOpacity={0.05}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.2} />
+                <XAxis 
+                  dataKey="day" 
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
+                  stroke="hsl(var(--border))" 
+                  strokeOpacity={0.5}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
+                  stroke="hsl(var(--border))" 
+                  strokeOpacity={0.5}
+                />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    backgroundColor: 'hsl(0 0% 8%)', 
+                    border: '1px solid hsl(270 80% 60% / 0.3)',
+                    borderRadius: '12px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
                   }}
+                  labelStyle={{ color: 'hsl(var(--foreground))' }}
                 />
-                <Bar dataKey="emails" fill="hsl(190, 70%, 45%)" radius={[4, 4, 0, 0]} name="Emails" />
-                <Bar dataKey="sms" fill="hsl(280, 65%, 55%)" radius={[4, 4, 0, 0]} name="SMS" />
-                <Bar dataKey="linkedin" fill="hsl(210, 85%, 55%)" radius={[4, 4, 0, 0]} name="LinkedIn" />
-                <Bar dataKey="replies" fill="hsl(38, 95%, 55%)" radius={[4, 4, 0, 0]} name="Replies" />
-              </BarChart>
+                <Area 
+                  type="monotone" 
+                  dataKey="emails" 
+                  stroke="hsl(270, 80%, 60%)" 
+                  strokeWidth={3}
+                  fill="url(#emailGradient)" 
+                  name="Emails"
+                  dot={{ fill: 'hsl(270, 80%, 60%)', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, fill: 'hsl(270, 80%, 60%)', strokeWidth: 0 }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="sms" 
+                  stroke="hsl(280, 75%, 65%)" 
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  fill="url(#smsGradient)" 
+                  name="SMS"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="linkedin" 
+                  stroke="hsl(250, 80%, 60%)" 
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  fill="url(#linkedinGradient)" 
+                  name="LinkedIn"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="replies" 
+                  stroke="hsl(45, 95%, 60%)" 
+                  strokeWidth={2}
+                  strokeDasharray="8 4"
+                  fill="none" 
+                  name="Replies"
+                  dot={{ fill: 'hsl(45, 95%, 60%)', strokeWidth: 2, r: 3 }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Channel Distribution Pie */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <div className="mb-4">
-            <h3 className="font-semibold text-foreground text-lg">Channel Distribution</h3>
-            <p className="text-sm text-muted-foreground">Total messages by channel</p>
+        <div className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-accent/5 opacity-50" />
+          <div className="mb-4 relative z-10">
+            <h3 className="font-bold text-foreground text-xl">Channel Distribution</h3>
+            <p className="text-sm text-muted-foreground mt-1">Total messages by channel</p>
           </div>
-          <div className="h-48">
+          <div className="h-48 relative z-10">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
+                <defs>
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                    <feMerge>
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                </defs>
                 <Pie
                   data={channelDistribution}
                   cx="50%"
                   cy="50%"
-                  innerRadius={45}
-                  outerRadius={75}
-                  paddingAngle={4}
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={5}
                   dataKey="value"
                 >
                   {channelDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.color}
+                      stroke={entry.color}
+                      strokeWidth={2}
+                    />
                   ))}
                 </Pie>
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
+                    backgroundColor: 'hsl(0 0% 8%)', 
+                    border: '1px solid hsl(270 80% 60% / 0.3)',
+                    borderRadius: '12px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
                   }}
+                  labelStyle={{ color: 'hsl(var(--foreground))' }}
                 />
               </PieChart>
             </ResponsiveContainer>
                   </div>
-          <div className="space-y-2 mt-2">
+          <div className="space-y-2 mt-2 relative z-10">
             {channelDistribution.map((channel) => (
               <div key={channel.name} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: channel.color }} />
-                  <span className="text-muted-foreground">{channel.name}</span>
+                  <div className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: channel.color, boxShadow: `0 0 10px ${channel.color}` }} />
+                  <span className="text-muted-foreground font-medium">{channel.name}</span>
                 </div>
-                <span className="font-medium text-foreground">{channel.value.toLocaleString()}</span>
+                <span className="font-semibold text-foreground">{channel.value.toLocaleString()}</span>
               </div>
             ))}
           </div>
@@ -305,139 +381,142 @@ export const Overview = () => {
       {/* Channel Performance Comparison */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Email Performance */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-node-outreach flex items-center justify-center">
-              <Mail className="w-5 h-5 text-white" />
+        <div className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden group hover:border-primary/40 transition-all">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-primary/5 opacity-50" />
+          <div className="flex items-center gap-3 mb-4 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-purple-glow">
+              <Mail className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">Email</h3>
+              <h3 className="font-bold text-foreground">Email</h3>
               <p className="text-xs text-muted-foreground">via Instantly.ai</p>
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 relative z-10">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Sent</span>
-              <span className="font-semibold">{channelMetrics.email.sent.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground font-medium">Sent</span>
+              <span className="font-bold">{channelMetrics.email.sent.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Delivered</span>
-              <span className="font-semibold">{channelMetrics.email.delivered.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground font-medium">Delivered</span>
+              <span className="font-bold">{channelMetrics.email.delivered.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Opened</span>
-              <span className="font-semibold">{channelMetrics.email.opened.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground font-medium">Opened</span>
+              <span className="font-bold">{channelMetrics.email.opened.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Replied</span>
-              <span className="font-semibold text-success">{channelMetrics.email.replied.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground font-medium">Replied</span>
+              <span className="font-bold text-success">{channelMetrics.email.replied.toLocaleString()}</span>
             </div>
             <div className="pt-3 border-t border-border">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-muted-foreground">Open Rate</span>
-                <span className="font-semibold text-node-outreach">{channelMetrics.email.openRate}%</span>
+                <span className="text-sm text-muted-foreground font-medium">Open Rate</span>
+                <span className="font-bold text-primary">{channelMetrics.email.openRate}%</span>
               </div>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div className="h-full bg-node-outreach rounded-full" style={{ width: `${channelMetrics.email.openRate}%` }} />
+              <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500" style={{ width: `${channelMetrics.email.openRate}%` }} />
               </div>
             </div>
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-muted-foreground">Reply Rate</span>
-                <span className="font-semibold text-node-reply">{channelMetrics.email.replyRate}%</span>
+                <span className="text-sm text-muted-foreground font-medium">Reply Rate</span>
+                <span className="font-bold text-success">{channelMetrics.email.replyRate}%</span>
               </div>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div className="h-full bg-node-reply rounded-full" style={{ width: `${channelMetrics.email.replyRate * 5}%` }} />
+              <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-success rounded-full transition-all duration-500" style={{ width: `${channelMetrics.email.replyRate * 5}%` }} />
               </div>
             </div>
           </div>
         </div>
 
         {/* SMS Performance */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-node-validation flex items-center justify-center">
-              <Smartphone className="w-5 h-5 text-white" />
+        <div className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden group hover:border-accent/40 transition-all">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-accent/5 opacity-50" />
+          <div className="flex items-center gap-3 mb-4 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-primary flex items-center justify-center shadow-purple-glow">
+              <Smartphone className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">SMS</h3>
+              <h3 className="font-bold text-foreground">SMS</h3>
               <p className="text-xs text-muted-foreground">via GoHighLevel</p>
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 relative z-10">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Sent</span>
-              <span className="font-semibold">{channelMetrics.sms.sent.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground font-medium">Sent</span>
+              <span className="font-bold">{channelMetrics.sms.sent.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Delivered</span>
-              <span className="font-semibold">{channelMetrics.sms.delivered.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground font-medium">Delivered</span>
+              <span className="font-bold">{channelMetrics.sms.delivered.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Replied</span>
-              <span className="font-semibold text-success">{channelMetrics.sms.replied.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground font-medium">Replied</span>
+              <span className="font-bold text-success">{channelMetrics.sms.replied.toLocaleString()}</span>
             </div>
             <div className="pt-3 border-t border-border">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-muted-foreground">Delivery Rate</span>
-                <span className="font-semibold text-node-validation">{channelMetrics.sms.deliveryRate}%</span>
+                <span className="text-sm text-muted-foreground font-medium">Delivery Rate</span>
+                <span className="font-bold text-accent">{channelMetrics.sms.deliveryRate}%</span>
               </div>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div className="h-full bg-node-validation rounded-full" style={{ width: `${channelMetrics.sms.deliveryRate}%` }} />
+              <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-accent to-primary rounded-full transition-all duration-500" style={{ width: `${channelMetrics.sms.deliveryRate}%` }} />
               </div>
             </div>
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-muted-foreground">Reply Rate</span>
-                <span className="font-semibold text-node-reply">{channelMetrics.sms.replyRate}%</span>
+                <span className="text-sm text-muted-foreground font-medium">Reply Rate</span>
+                <span className="font-bold text-success">{channelMetrics.sms.replyRate}%</span>
               </div>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div className="h-full bg-node-reply rounded-full" style={{ width: `${channelMetrics.sms.replyRate * 5}%` }} />
+              <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-success rounded-full transition-all duration-500" style={{ width: `${channelMetrics.sms.replyRate * 5}%` }} />
               </div>
             </div>
           </div>
         </div>
 
         {/* LinkedIn Performance */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-node-ingestion flex items-center justify-center">
-              <Linkedin className="w-5 h-5 text-white" />
+        <div className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden group hover:border-info/40 transition-all">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-info/5 opacity-50" />
+          <div className="flex items-center gap-3 mb-4 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-info to-primary flex items-center justify-center shadow-purple-glow">
+              <Linkedin className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">LinkedIn</h3>
+              <h3 className="font-bold text-foreground">LinkedIn</h3>
               <p className="text-xs text-muted-foreground">via PhantomBuster</p>
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 relative z-10">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Requests Sent</span>
-              <span className="font-semibold">{channelMetrics.linkedin.sent.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground font-medium">Requests Sent</span>
+              <span className="font-bold">{channelMetrics.linkedin.sent.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Accepted</span>
-              <span className="font-semibold">{channelMetrics.linkedin.accepted.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground font-medium">Accepted</span>
+              <span className="font-bold">{channelMetrics.linkedin.accepted.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Replied</span>
-              <span className="font-semibold text-success">{channelMetrics.linkedin.replied.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground font-medium">Replied</span>
+              <span className="font-bold text-success">{channelMetrics.linkedin.replied.toLocaleString()}</span>
             </div>
             <div className="pt-3 border-t border-border">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-muted-foreground">Accept Rate</span>
-                <span className="font-semibold text-node-ingestion">{channelMetrics.linkedin.acceptRate}%</span>
+                <span className="text-sm text-muted-foreground font-medium">Accept Rate</span>
+                <span className="font-bold text-info">{channelMetrics.linkedin.acceptRate}%</span>
               </div>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div className="h-full bg-node-ingestion rounded-full" style={{ width: `${channelMetrics.linkedin.acceptRate}%` }} />
+              <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-info to-primary rounded-full transition-all duration-500" style={{ width: `${channelMetrics.linkedin.acceptRate}%` }} />
                 </div>
                 </div>
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-muted-foreground">Reply Rate</span>
-                <span className="font-semibold text-node-reply">{channelMetrics.linkedin.replyRate}%</span>
+                <span className="text-sm text-muted-foreground font-medium">Reply Rate</span>
+                <span className="font-bold text-success">{channelMetrics.linkedin.replyRate}%</span>
                 </div>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div className="h-full bg-node-reply rounded-full" style={{ width: `${channelMetrics.linkedin.replyRate * 5}%` }} />
+              <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-success rounded-full transition-all duration-500" style={{ width: `${channelMetrics.linkedin.replyRate * 5}%` }} />
               </div>
             </div>
           </div>
@@ -447,69 +526,88 @@ export const Overview = () => {
       {/* Bottom Row: Reply Rate Trend + System Health */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Reply Rate Trend */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
+        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-success/5 opacity-50" />
+          <div className="flex items-center justify-between mb-4 relative z-10">
             <div>
-              <h3 className="font-semibold text-foreground text-lg">Reply Rate Trend</h3>
-              <p className="text-sm text-muted-foreground">Weekly reply rate percentage</p>
+              <h3 className="font-bold text-foreground text-xl">Reply Rate Trend</h3>
+              <p className="text-sm text-muted-foreground mt-1">Weekly reply rate percentage</p>
               <p className="text-xs text-muted-foreground/70 italic mt-1">* Sample data - time-series tracking coming soon</p>
             </div>
-            <div className="flex items-center gap-1 text-success text-sm">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-success/15 border border-success/30 text-success text-sm font-medium">
               <TrendingUp className="w-4 h-4" />
               <span>+4.2% overall</span>
             </div>
           </div>
-          <div className="h-56">
+          <div className="h-56 relative z-10">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={replyRateTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                <XAxis dataKey="week" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+              <AreaChart data={replyRateTrend}>
+                <defs>
+                  <linearGradient id="replyGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(152, 65%, 55%)" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="hsl(152, 65%, 55%)" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.2} />
+                <XAxis 
+                  dataKey="week" 
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
+                  stroke="hsl(var(--border))" 
+                  strokeOpacity={0.5}
+                />
                 <YAxis 
-                  tick={{ fontSize: 12 }} 
-                  stroke="hsl(var(--muted-foreground))" 
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
+                  stroke="hsl(var(--border))" 
+                  strokeOpacity={0.5}
                   tickFormatter={(value) => `${value}%`}
                   domain={[0, 15]}
                 />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
+                    backgroundColor: 'hsl(0 0% 8%)', 
+                    border: '1px solid hsl(152 65% 55% / 0.3)',
+                    borderRadius: '12px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
                   }}
+                  labelStyle={{ color: 'hsl(var(--foreground))' }}
                   formatter={(value: number) => [`${value}%`, 'Reply Rate']}
                 />
-                <Line 
+                <Area 
                   type="monotone" 
                   dataKey="rate" 
-                  stroke="hsl(152, 65%, 45%)" 
+                  stroke="hsl(152, 65%, 55%)" 
                   strokeWidth={3}
-                  dot={{ fill: 'hsl(152, 65%, 45%)', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, fill: 'hsl(152, 65%, 45%)' }}
+                  fill="url(#replyGradient)"
+                  dot={{ fill: 'hsl(152, 65%, 55%)', strokeWidth: 2, r: 5, stroke: 'hsl(0 0% 4%)', strokeWidth: 2 }}
+                  activeDot={{ r: 7, fill: 'hsl(152, 65%, 55%)', stroke: 'hsl(0 0% 4%)', strokeWidth: 3 }}
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* System Health */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground text-lg">System Health</h3>
-            <Zap className="w-5 h-5 text-primary" />
+        <div className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-primary/5 opacity-50" />
+          <div className="flex items-center justify-between mb-4 relative z-10">
+            <h3 className="font-bold text-foreground text-xl">System Health</h3>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-purple-glow">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-4 relative z-10">
             {[
-              { label: "Email Open Rate", value: channelMetrics.email.openRate, color: "bg-node-outreach" },
-              { label: "SMS Delivery", value: channelMetrics.sms.deliveryRate, color: "bg-node-validation" },
-              { label: "LinkedIn Accept", value: channelMetrics.linkedin.acceptRate, color: "bg-node-ingestion" },
-              { label: "Overall Reply Rate", value: outreach?.totals.overallReplyRate || 0, color: "bg-node-reply" },
+              { label: "Email Open Rate", value: channelMetrics.email.openRate, color: "bg-primary" },
+              { label: "SMS Delivery", value: channelMetrics.sms.deliveryRate, color: "bg-accent" },
+              { label: "LinkedIn Accept", value: channelMetrics.linkedin.acceptRate, color: "bg-info" },
+              { label: "Overall Reply Rate", value: outreach?.totals.overallReplyRate || 0, color: "bg-success" },
             ].map((metric) => (
               <div key={metric.label}>
                 <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-muted-foreground">{metric.label}</span>
-                  <span className="font-semibold text-foreground">{metric.value}%</span>
+                  <span className="text-muted-foreground font-medium">{metric.label}</span>
+                  <span className="font-bold text-foreground">{metric.value}%</span>
                 </div>
-                <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
                   <div 
                     className={`h-full ${metric.color} rounded-full transition-all duration-500`}
                     style={{ width: `${Math.min(metric.value, 100)}%` }}
@@ -520,23 +618,23 @@ export const Overview = () => {
           </div>
 
           {/* System Status */}
-          <div className="mt-6 pt-4 border-t border-border">
+          <div className="mt-6 pt-4 border-t border-border relative z-10">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">System Status</span>
+              <span className="text-sm text-muted-foreground font-medium">System Status</span>
               {healthLoading ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Checking...</span>
                 </div>
               ) : (healthData?.status === "healthy" || healthData?.status === "degraded") ? (
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                  <span className="text-sm font-medium text-success">All Operational</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-success/15 border border-success/30">
+                <span className="w-2 h-2 rounded-full bg-success animate-pulse shadow-lg shadow-success/50" />
+                  <span className="text-sm font-semibold text-success">All Operational</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-warning" />
-                  <span className="text-sm font-medium text-warning">Issues Detected</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-warning/15 border border-warning/30">
+                  <span className="w-2 h-2 rounded-full bg-warning shadow-lg shadow-warning/50" />
+                  <span className="text-sm font-semibold text-warning">Issues Detected</span>
               </div>
               )}
             </div>

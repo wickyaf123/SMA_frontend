@@ -107,8 +107,10 @@ export default {
         "scale-in": "scale-in 0.2s ease-out",
       },
       boxShadow: {
-        "node": "0 2px 8px -2px rgba(0, 0, 0, 0.08), 0 4px 16px -4px rgba(0, 0, 0, 0.06)",
-        "node-hover": "0 4px 12px -2px rgba(0, 0, 0, 0.1), 0 8px 24px -4px rgba(0, 0, 0, 0.08)",
+        "node": "0 2px 8px -2px rgba(0, 0, 0, 0.3), 0 4px 16px -4px rgba(139, 92, 246, 0.1)",
+        "node-hover": "0 4px 12px -2px rgba(0, 0, 0, 0.4), 0 8px 24px -4px rgba(139, 92, 246, 0.2)",
+        "purple-glow": "0 0 20px rgba(139, 92, 246, 0.3)",
+        "purple-glow-lg": "0 0 30px rgba(139, 92, 246, 0.4), 0 0 60px rgba(139, 92, 246, 0.2)",
       },
     },
   },
