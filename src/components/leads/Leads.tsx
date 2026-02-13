@@ -126,7 +126,8 @@ export const Leads = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [columnVisibility, setColumnVisibility] = useState<Record<ColumnKey, boolean>>(defaultColumnVisibility);
   const [isAllPagesSelected, setIsAllPagesSelected] = useState(false);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(30);
+  const [showAll, setShowAll] = useState(false);
 
   // Modal states
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
@@ -171,8 +172,8 @@ export const Leads = () => {
   const { data: contactsData, isLoading, error } = useContacts({
     search: search || undefined,
     status: statusFilter !== "all" ? [statusFilter as ContactStatus] : undefined,
-    page: currentPage,
-    limit: itemsPerPage,
+    page: showAll ? 1 : currentPage,
+    limit: showAll ? 1000 : itemsPerPage,
     // Use default sort (createdAt) for googleRating since it's client-side sorted
     sort: sortField === "googleRating" ? "createdAt" : sortField,
     order: sortDirection,
@@ -1644,43 +1645,77 @@ export const Leads = () => {
         </div>
         )}
 
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
+        {/* Pagination & Row Controls */}
+        {pagination && (
         <div className="flex items-center justify-between p-4 border-t border-border">
           <p className="text-sm text-muted-foreground">
-              Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-              {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-              {pagination.total} leads
+            {showAll
+              ? `Showing all ${pagination.total} leads`
+              : `Showing ${(pagination.page - 1) * pagination.limit + 1} to ${Math.min(pagination.page * pagination.limit, pagination.total)} of ${pagination.total} leads`}
           </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-              {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => i + 1).map((page) => (
-              <Button
-                key={page}
-                variant={currentPage === page ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCurrentPage(page)}
-                className="w-8"
+          <div className="flex items-center gap-3">
+            {/* Rows per page selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Rows:</span>
+              <select
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                value={showAll ? "all" : itemsPerPage}
+                onChange={(e) => {
+                  if (e.target.value === "all") {
+                    setShowAll(true);
+                    setCurrentPage(1);
+                  } else {
+                    setShowAll(false);
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }
+                }}
               >
-                {page}
-              </Button>
-            ))}
-              {pagination.totalPages > 5 && <span className="text-muted-foreground">...</span>}
-            <Button
-              variant="outline"
-              size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
-                disabled={currentPage === pagination.totalPages}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+                <option value={10}>10</option>
+                <option value={30}>30</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value="all">Show All</option>
+              </select>
+            </div>
+            {/* Page navigation (hidden when showing all) */}
+            {!showAll && pagination.totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
+                  const startPage = Math.max(1, Math.min(currentPage - 2, pagination.totalPages - 4));
+                  return startPage + i;
+                }).filter(p => p >= 1 && p <= pagination.totalPages).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(page)}
+                    className="w-8"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                {pagination.totalPages > 5 && currentPage < pagination.totalPages - 2 && (
+                  <span className="text-muted-foreground">...</span>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
+                  disabled={currentPage === pagination.totalPages}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
         )}
