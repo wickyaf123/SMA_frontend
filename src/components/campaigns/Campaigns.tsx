@@ -146,11 +146,10 @@ export const Campaigns = ({ onNavigateToSettings }: CampaignsProps = {}) => {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-card border border-border rounded-2xl p-5 hover:border-primary/40 transition-all relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-primary/5 opacity-50" />
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Users className="w-6 h-6 text-primary" />
+        <div className="bg-card border border-border rounded-xl p-5 hover:border-primary/40 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Users className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-3xl font-bold text-foreground tracking-tight">
@@ -160,11 +159,10 @@ export const Campaigns = ({ onNavigateToSettings }: CampaignsProps = {}) => {
             </div>
           </div>
         </div>
-        <div className="bg-card border border-border rounded-2xl p-5 hover:border-primary/40 transition-all relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-primary/5 opacity-50" />
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Send className="w-6 h-6 text-primary" />
+        <div className="bg-card border border-border rounded-xl p-5 hover:border-primary/40 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Send className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-3xl font-bold text-foreground tracking-tight">
@@ -174,11 +172,10 @@ export const Campaigns = ({ onNavigateToSettings }: CampaignsProps = {}) => {
             </div>
           </div>
         </div>
-        <div className="bg-card border border-border rounded-2xl p-5 hover:border-success/40 transition-all relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-success/5 opacity-50" />
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
-              <MessageSquare className="w-6 h-6 text-success" />
+        <div className="bg-card border border-border rounded-xl p-5 hover:border-success/40 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+              <MessageSquare className="w-5 h-5 text-success" />
             </div>
             <div>
               <p className="text-3xl font-bold text-foreground tracking-tight">
@@ -188,11 +185,10 @@ export const Campaigns = ({ onNavigateToSettings }: CampaignsProps = {}) => {
             </div>
           </div>
         </div>
-        <div className="bg-card border border-border rounded-2xl p-5 hover:border-warning/40 transition-all relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-warning/5 opacity-50" />
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-warning" />
+        <div className="bg-card border border-border rounded-xl p-5 hover:border-warning/40 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-warning" />
             </div>
             <div>
               <p className="text-3xl font-bold text-foreground tracking-tight">
@@ -211,8 +207,8 @@ export const Campaigns = ({ onNavigateToSettings }: CampaignsProps = {}) => {
           <div className={cn("p-4 border-b border-border", "bg-node-outreach/5")}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center", "bg-node-outreach")}>
-                  <Mail className="w-6 h-6 text-white" />
+                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", "bg-node-outreach")}>
+                  <Mail className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground text-lg">Email</h3>
@@ -286,8 +282,8 @@ export const Campaigns = ({ onNavigateToSettings }: CampaignsProps = {}) => {
           <div className={cn("p-4 border-b border-border", "bg-node-validation/5")}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center", "bg-node-validation")}>
-                  <Smartphone className="w-6 h-6 text-white" />
+                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", "bg-node-validation")}>
+                  <Smartphone className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground text-lg">SMS</h3>
@@ -361,8 +357,8 @@ export const Campaigns = ({ onNavigateToSettings }: CampaignsProps = {}) => {
           <div className={cn("p-4 border-b border-border", "bg-node-ingestion/5")}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center", "bg-node-ingestion")}>
-                  <Linkedin className="w-6 h-6 text-white" />
+                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", "bg-node-ingestion")}>
+                  <Linkedin className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground text-lg">LinkedIn</h3>

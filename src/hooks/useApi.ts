@@ -30,8 +30,8 @@ import type {
   PaginatedResponse,
   MessageTemplate,
   TemplateChannel,
-  ApifyScraperSettings,
-  ApolloScraperSettings,
+  ShovelsScraperSettings,
+  PermitRoutingSettings,
   PipelineControlSettings,
   ContactReply,
   ContactActivity,
@@ -81,6 +81,10 @@ export const queryKeys = {
   routingFilterOptions: ['routing-filter-options'] as const,
   
   settings: ['settings'] as const,
+  
+  shovels: {
+    settings: ['shovels', 'settings'] as const,
+  },
   
   activity: {
     all: ['activity'] as const,
@@ -592,64 +596,54 @@ export function useScraperSettings() {
   });
 }
 
-export function useApifySettings() {
+export function useShovelsSettings() {
   return useQuery({
-    queryKey: ['settings', 'scrapers', 'apify'],
-    queryFn: () => api.settings.getApifySettings(),
+    queryKey: queryKeys.shovels.settings,
+    queryFn: () => api.settings.getShovelsSettings(),
     staleTime: 60000,
   });
 }
 
-export function useApolloSettings() {
+export function useUpdateShovelsSettings() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (data: Partial<ShovelsScraperSettings>) =>
+      api.settings.updateShovelsSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.shovels.settings });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings });
+      toast({ title: 'Shovels settings saved' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to save Shovels settings', variant: 'destructive' });
+    },
+  });
+}
+
+// ==================== PERMIT ROUTING ====================
+
+export function usePermitRoutingSettings() {
   return useQuery({
-    queryKey: ['settings', 'scrapers', 'apollo'],
-    queryFn: () => api.settings.getApolloSettings(),
+    queryKey: ['settings', 'permit-routing'],
+    queryFn: () => api.settings.getPermitRoutingSettings(),
     staleTime: 60000,
   });
 }
 
-export function useUpdateApifySettings() {
+export function useUpdatePermitRoutingSettings() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
   return useMutation({
-    mutationFn: (data: Partial<ApifyScraperSettings>) => api.settings.updateApifySettings(data),
+    mutationFn: (data: Partial<PermitRoutingSettings>) =>
+      api.settings.updatePermitRoutingSettings(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings', 'scrapers'] });
-      toast({
-        title: 'Apify settings updated',
-        description: 'Google Maps scraper settings have been saved.',
-      });
+      queryClient.invalidateQueries({ queryKey: ['settings', 'permit-routing'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings });
+      toast({ title: 'Permit routing settings saved' });
     },
-    onError: (error: ApiError) => {
-      toast({
-        title: 'Failed to update Apify settings',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-}
-
-export function useUpdateApolloSettings() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  
-  return useMutation({
-    mutationFn: (data: Partial<ApolloScraperSettings>) => api.settings.updateApolloSettings(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings', 'scrapers'] });
-      toast({
-        title: 'Apollo settings updated',
-        description: 'Apollo scraper settings have been saved.',
-      });
-    },
-    onError: (error: ApiError) => {
-      toast({
-        title: 'Failed to update Apollo settings',
-        description: error.message,
-        variant: 'destructive',
-      });
+    onError: () => {
+      toast({ title: 'Failed to save permit routing settings', variant: 'destructive' });
     },
   });
 }
@@ -814,7 +808,7 @@ export function useTriggerScheduledJob() {
   const { toast } = useToast();
   
   return useMutation({
-    mutationFn: (jobName: 'scrape' | 'apollo' | 'enrich' | 'merge' | 'validate' | 'enroll') =>
+    mutationFn: (jobName: 'shovels' | 'enrich' | 'merge' | 'validate' | 'enroll') =>
       api.settings.triggerJob(jobName),
     onSuccess: (_, jobName) => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });

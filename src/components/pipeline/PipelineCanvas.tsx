@@ -33,7 +33,7 @@ const pipelineNodes: PipelineNodeData[] = [
   {
     id: "ingestion",
     title: "Lead Ingestion",
-    subtitle: "Apollo API & Bulk Import",
+    subtitle: "Shovels Permits & Bulk Import",
     icon: Download,
     status: "completed",
       stats: { 

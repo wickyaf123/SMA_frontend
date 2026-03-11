@@ -198,8 +198,7 @@ export const Overview = () => {
       {/* Trends Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Outreach Trends Chart */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-primary/5 opacity-50" />
+        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-4 relative z-10">
             <div>
               <h3 className="font-bold text-foreground text-xl">Outreach Trends</h3>
@@ -316,8 +315,7 @@ export const Overview = () => {
         </div>
 
         {/* Channel Distribution Pie */}
-        <div className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-accent/5 opacity-50" />
+        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden">
           <div className="mb-4 relative z-10">
             <h3 className="font-bold text-foreground text-xl">Channel Distribution</h3>
             <p className="text-sm text-muted-foreground mt-1">Total messages by channel</p>
@@ -381,11 +379,10 @@ export const Overview = () => {
       {/* Channel Performance Comparison */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Email Performance */}
-        <div className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden group hover:border-primary/40 transition-all">
-          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-primary/5 opacity-50" />
+        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden group hover:border-primary/40 transition-all">
           <div className="flex items-center gap-3 mb-4 relative z-10">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-purple-glow">
-              <Mail className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Mail className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h3 className="font-bold text-foreground">Email</h3>
@@ -431,11 +428,10 @@ export const Overview = () => {
         </div>
 
         {/* SMS Performance */}
-        <div className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden group hover:border-accent/40 transition-all">
-          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-accent/5 opacity-50" />
+        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden group hover:border-accent/40 transition-all">
           <div className="flex items-center gap-3 mb-4 relative z-10">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-primary flex items-center justify-center shadow-purple-glow">
-              <Smartphone className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+              <Smartphone className="w-5 h-5 text-accent" />
             </div>
             <div>
               <h3 className="font-bold text-foreground">SMS</h3>
@@ -477,11 +473,10 @@ export const Overview = () => {
         </div>
 
         {/* LinkedIn Performance */}
-        <div className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden group hover:border-info/40 transition-all">
-          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-info/5 opacity-50" />
+        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden group hover:border-info/40 transition-all">
           <div className="flex items-center gap-3 mb-4 relative z-10">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-info to-primary flex items-center justify-center shadow-purple-glow">
-              <Linkedin className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
+              <Linkedin className="w-5 h-5 text-info" />
             </div>
             <div>
               <h3 className="font-bold text-foreground">LinkedIn</h3>
@@ -526,8 +521,7 @@ export const Overview = () => {
       {/* Bottom Row: Reply Rate Trend + System Health */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Reply Rate Trend */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-success/5 opacity-50" />
+        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-4 relative z-10">
             <div>
               <h3 className="font-bold text-foreground text-xl">Reply Rate Trend</h3>
@@ -587,12 +581,11 @@ export const Overview = () => {
         </div>
 
         {/* System Health */}
-        <div className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-primary/5 opacity-50" />
+        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-4 relative z-10">
             <h3 className="font-bold text-foreground text-xl">System Health</h3>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-purple-glow">
-              <Zap className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Zap className="w-5 h-5 text-primary" />
             </div>
           </div>
           <div className="space-y-4 relative z-10">

@@ -2,147 +2,120 @@
 @tailwind components;
 @tailwind utilities;
 
-/* TLA Outreach App Dashboard - Clean Professional Design System */
-
 @layer base {
   :root {
-    /* Core backgrounds - clean whites and light grays */
-    --background: 0 0% 98%;
-    --foreground: 220 20% 15%;
-
-    /* Cards and surfaces */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 15%;
-
+    --card-foreground: 240 10% 3.9%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 15%;
-
-    /* Primary - Professional teal/cyan */
-    --primary: 190 70% 45%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Secondary - Soft gray-blue */
-    --secondary: 210 25% 95%;
-    --secondary-foreground: 220 20% 25%;
-
-    /* Muted surfaces */
-    --muted: 210 20% 96%;
-    --muted-foreground: 220 10% 50%;
-
-    /* Accent - Lighter teal */
-    --accent: 190 60% 95%;
-    --accent-foreground: 190 70% 35%;
-
-    /* Status colors */
-    --success: 152 65% 45%;
-    --success-foreground: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
     
-    --warning: 38 95% 55%;
-    --warning-foreground: 0 0% 100%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
     
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 0 0% 100%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
 
-    --info: 210 85% 55%;
-    --info-foreground: 0 0% 100%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 221.2 83.2% 53.3%;
+    
+    --radius: 0.5rem;
 
-    /* Borders */
-    --border: 210 20% 90%;
-    --input: 210 20% 90%;
-    --ring: 190 70% 45%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
 
-    --radius: 1rem;
+    /* Pipeline & App specific colors */
+    --canvas: 240 4.8% 95.9%;
+    --canvas-dot: 240 5.9% 90%;
+    --node-connector: 240 3.8% 46.1%;
 
-    /* Canvas/Pipeline area */
-    --canvas: 210 25% 97%;
-    --canvas-dot: 210 20% 85%;
-    --node-connector: 210 25% 80%;
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 355.7 100% 97.3%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 89%;
+    --info: 217.2 91.2% 59.8%;
+    --info-foreground: 222.2 47.4% 11.2%;
 
-    /* Sidebar */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 15% 40%;
-    --sidebar-primary: 190 70% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 190 60% 95%;
-    --sidebar-accent-foreground: 190 70% 35%;
-    --sidebar-border: 210 20% 92%;
-    --sidebar-ring: 190 70% 45%;
-
-    /* Pipeline node colors */
-    --node-ingestion: 210 85% 55%;
-    --node-validation: 280 65% 55%;
-    --node-outreach: 190 70% 45%;
-    --node-reply: 38 95% 55%;
-    --node-crm: 152 65% 45%;
+    --node-ingestion: 221.2 83.2% 53.3%;
+    --node-validation: 262.1 83.3% 57.8%;
+    --node-outreach: 24.6 95% 53.1%;
+    --node-reply: 142.1 76.2% 36.3%;
+    --node-crm: 315.4 73.5% 48.6%;
   }
 
   .dark {
-    /* Core backgrounds - pure black theme */
-    --background: 0 0% 4%;
-    --foreground: 0 0% 95%;
-
-    /* Cards and surfaces - very dark with subtle variation */
-    --card: 0 0% 10%;
-    --card-foreground: 0 0% 95%;
-
-    --popover: 0 0% 10%;
-    --popover-foreground: 0 0% 95%;
-
-    /* Primary - Purple accent */
-    --primary: 270 80% 60%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Secondary */
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 90%;
-
-    /* Muted surfaces */
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 60%;
-
-    /* Accent - Lavender/Light purple */
-    --accent: 280 70% 65%;
-    --accent-foreground: 0 0% 100%;
-
-    /* Status colors - adjusted for black background */
-    --success: 152 65% 55%;
-    --success-foreground: 0 0% 100%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
     
-    --warning: 45 95% 60%;
-    --warning-foreground: 0 0% 10%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
     
-    --destructive: 0 72% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 217.2 91.2% 59.8%;
 
-    --info: 210 85% 60%;
-    --info-foreground: 0 0% 100%;
-
-    /* Borders - subtle on black */
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 270 80% 60%;
-
-    /* Canvas/Pipeline area - pure black */
-    --canvas: 0 0% 3%;
-    --canvas-dot: 0 0% 12%;
-    --node-connector: 270 40% 40%;
-
-    /* Sidebar - pure black */
-    --sidebar-background: 0 0% 0%;
-    --sidebar-foreground: 0 0% 75%;
-    --sidebar-primary: 270 80% 60%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 60% 15%;
-    --sidebar-accent-foreground: 270 80% 70%;
-    --sidebar-border: 0 0% 12%;
-    --sidebar-ring: 270 80% 60%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
 
-    /* Pipeline node colors - purple spectrum */
-    --node-ingestion: 250 80% 60%;
-    --node-validation: 270 80% 60%;
-    --node-outreach: 290 75% 65%;
-    --node-reply: 45 95% 60%;
-    --node-crm: 152 65% 55%;
+    --canvas: 240 10% 3.9%;
+    --canvas-dot: 240 3.7% 15.9%;
+    --node-connector: 240 5% 64.9%;
+
+    --success: 142.1 70.6% 45.3%;
+    --success-foreground: 144.9 80.4% 10%;
+    --warning: 47.9 95.8% 53.1%;
+    --warning-foreground: 26 83.3% 14.1%;
+    --info: 217.2 91.2% 59.8%;
+    --info-foreground: 222.2 47.4% 11.2%;
+
+    --node-ingestion: 217.2 91.2% 59.8%;
+    --node-validation: 258.3 89.5% 66.3%;
+    --node-outreach: 20.5 90.2% 48.2%;
+    --node-reply: 142.1 70.6% 45.3%;
+    --node-crm: 315.4 73.5% 48.6%;
   }
 }
 
@@ -150,191 +123,80 @@
   * {
     @apply border-border;
   }
-
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply bg-background text-foreground antialiased selection:bg-primary selection:text-primary-foreground;
   }
-
+  /* Refined typography */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold;
-    letter-spacing: -0.02em;
+    @apply tracking-tight font-medium;
   }
-
-  h1 { @apply text-3xl lg:text-4xl; }
-  h2 { @apply text-2xl lg:text-3xl; }
-  h3 { @apply text-xl lg:text-2xl; }
 }
 
 @layer components {
-  /* Canvas dotted background */
   .canvas-grid {
     background-image: radial-gradient(circle, hsl(var(--canvas-dot)) 1px, transparent 1px);
     background-size: 24px 24px;
     background-color: hsl(var(--canvas));
   }
 
-  /* Enhanced card with gradient and glass-morphism */
   .glass-card {
-    @apply relative bg-card border border-border rounded-2xl p-6 shadow-lg transition-all duration-300;
-    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(0 0% 8%) 100%);
-    backdrop-filter: blur(10px);
+    @apply relative bg-card border border-border rounded-lg p-6 shadow-sm transition-all duration-200;
   }
-
+  
   .glass-card:hover {
-    @apply border-primary/40;
-    box-shadow: 0 8px 32px -8px hsl(var(--primary) / 0.3), 0 0 0 1px hsl(var(--primary) / 0.1);
+    @apply shadow-md border-border/80;
   }
 
-  /* Pipeline node base styles */
   .pipeline-node {
-    @apply relative bg-card border border-border rounded-2xl p-4 shadow-sm transition-all duration-300;
-    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(0 0% 8%) 100%);
+    @apply relative bg-card border border-border rounded-lg p-4 shadow-sm transition-all duration-200;
   }
 
   .pipeline-node:hover {
-    @apply border-primary/30;
-    box-shadow: 0 4px 20px -4px hsl(var(--primary) / 0.25);
+    @apply shadow-md border-border/80;
   }
 
   .pipeline-node.active {
-    @apply ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50;
-    box-shadow: 0 8px 32px -8px hsl(var(--primary) / 0.4);
+    @apply ring-1 ring-primary border-primary shadow-md;
   }
 
-  /* Connector lines */
   .connector-line {
     @apply bg-node-connector;
   }
 
   .connector-dot {
     @apply w-2 h-2 rounded-full bg-primary;
-    box-shadow: 0 0 8px hsl(var(--primary) / 0.6);
   }
 
-  /* Status badge styles */
   .status-badge {
-    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium;
-    backdrop-filter: blur(8px);
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium border;
   }
 
   .status-badge.success {
-    @apply bg-success/20 text-success border border-success/30;
+    @apply bg-success/10 text-success border-success/20;
   }
 
   .status-badge.warning {
-    @apply bg-warning/20 text-warning border border-warning/30;
+    @apply bg-warning/10 text-warning border-warning/20;
   }
 
   .status-badge.error {
-    @apply bg-destructive/20 text-destructive border border-destructive/30;
+    @apply bg-destructive/10 text-destructive border-destructive/20;
   }
 
   .status-badge.info {
-    @apply bg-info/20 text-info border border-info/30;
+    @apply bg-info/10 text-info border-info/20;
   }
 
   .status-badge.pending {
-    @apply bg-muted text-muted-foreground border border-border;
+    @apply bg-muted text-muted-foreground border-border;
   }
 
-  /* Sidebar navigation item */
   .nav-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200;
-    @apply text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200;
+    @apply text-muted-foreground hover:bg-accent hover:text-accent-foreground;
   }
 
   .nav-item.active {
-    @apply bg-sidebar-accent text-sidebar-primary font-semibold;
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.15);
-  }
-
-  /* Smooth animations */
-  .animate-slide-up {
-    animation: slideUp 0.3s ease-out;
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .animate-pulse-soft {
-    animation: pulseSoft 2s ease-in-out infinite;
-  }
-
-  @keyframes pulseSoft {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
-  }
-
-  /* Purple glow effect */
-  .purple-glow {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
-  }
-
-  .purple-glow-hover {
-    transition: box-shadow 0.3s ease;
-  }
-
-  .purple-glow-hover:hover {
-    box-shadow: 0 0 30px hsl(var(--primary) / 0.5), 0 0 60px hsl(var(--primary) / 0.2);
-  }
-
-  /* Smooth fade-in animation */
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .animate-fade-in-slow {
-    animation: fadeIn 0.6s ease-out;
-  }
-
-  /* Shimmer effect for loading states */
-  @keyframes shimmer {
-    0% {
-      background-position: -1000px 0;
-    }
-    100% {
-      background-position: 1000px 0;
-    }
-  }
-
-  .shimmer {
-    background: linear-gradient(
-      to right,
-      hsl(var(--card)) 0%,
-      hsl(var(--primary) / 0.1) 50%,
-      hsl(var(--card)) 100%
-    );
-    background-size: 1000px 100%;
-    animation: shimmer 2s infinite;
-  }
-
-  /* Enhanced button states */
-  button, a {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Smooth transitions for all interactive elements */
-  * {
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    @apply bg-accent text-accent-foreground font-medium;
   }
 }

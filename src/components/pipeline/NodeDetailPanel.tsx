@@ -153,7 +153,7 @@ export const NodeDetailPanel = ({ node, onClose }: NodeDetailPanelProps) => {
       <div className="p-6 border-b border-border bg-gradient-to-br from-card to-primary/5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-node-${node.color} shadow-purple-glow`}>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-node-${node.color}`}>
               <Icon className="w-6 h-6 text-white" />
             </div>
             <div>

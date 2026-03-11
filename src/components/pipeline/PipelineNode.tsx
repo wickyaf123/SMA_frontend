@@ -29,7 +29,7 @@ const colorMap = {
 };
 
 const statusStyles = {
-  active: "border-primary shadow-node-hover",
+  active: "border-primary shadow-md",
   pending: "border-border opacity-70",
   completed: "border-success/50",
   error: "border-destructive/50",
@@ -50,10 +50,10 @@ export const PipelineNode = ({ node, isSelected, onClick }: PipelineNodeProps) =
       <div className="flex items-start gap-3">
         {/* Icon */}
         <div className={cn(
-          "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg transition-all duration-300 group-hover:scale-110",
+          "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-105",
           colorMap[node.color]
         )}>
-          <Icon className="w-6 h-6 text-white" />
+          <Icon className="w-5 h-5 text-white" />
         </div>
 
         {/* Content */}

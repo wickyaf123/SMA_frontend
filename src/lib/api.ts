@@ -29,8 +29,8 @@ import type {
   JobStats,
   MessageTemplate,
   TemplateChannel,
-  ApifyScraperSettings,
-  ApolloScraperSettings,
+  ShovelsScraperSettings,
+  PermitRoutingSettings,
   PipelineControlSettings,
   ContactReply,
   ContactActivity,
@@ -319,19 +319,20 @@ export const api = {
     
     // Scraper settings
     getScraperSettings: () =>
-      request<{ data: { apify: ApifyScraperSettings; apollo: ApolloScraperSettings } }>('/api/v1/settings/scrapers'),
+      request<{ data: { shovels: ShovelsScraperSettings } }>('/api/v1/settings/scrapers'),
     
-    getApifySettings: () =>
-      request<{ data: ApifyScraperSettings }>('/api/v1/settings/scrapers/apify'),
+    getShovelsSettings: () =>
+      request<{ data: ShovelsScraperSettings }>('/api/v1/settings/scrapers/shovels'),
     
-    updateApifySettings: (data: Partial<ApifyScraperSettings>) =>
-      request<{ data: ApifyScraperSettings }>('/api/v1/settings/scrapers/apify', { method: 'PATCH', body: data }),
+    updateShovelsSettings: (data: Partial<ShovelsScraperSettings>) =>
+      request<{ data: ShovelsScraperSettings }>('/api/v1/settings/scrapers/shovels', { method: 'PATCH', body: data }),
     
-    getApolloSettings: () =>
-      request<{ data: ApolloScraperSettings }>('/api/v1/settings/scrapers/apollo'),
+    // Permit routing
+    getPermitRoutingSettings: () =>
+      request<{ data: PermitRoutingSettings }>('/api/v1/settings/permit-routing'),
     
-    updateApolloSettings: (data: Partial<ApolloScraperSettings>) =>
-      request<{ data: ApolloScraperSettings }>('/api/v1/settings/scrapers/apollo', { method: 'PATCH', body: data }),
+    updatePermitRoutingSettings: (data: Partial<PermitRoutingSettings>) =>
+      request<{ data: PermitRoutingSettings }>('/api/v1/settings/permit-routing', { method: 'PATCH', body: data }),
     
     // Pipeline controls
     getPipelineControls: () =>
@@ -362,7 +363,7 @@ export const api = {
     getSchedulerStatus: () =>
       request<{ data: { isRunning: boolean; jobs: Array<{ name: string; schedule: string; humanReadable: string }> } }>('/api/v1/settings/schedules/status'),
     
-    triggerJob: (jobName: 'scrape' | 'apollo' | 'enrich' | 'merge' | 'validate' | 'enroll') =>
+    triggerJob: (jobName: 'shovels' | 'enrich' | 'merge' | 'validate' | 'enroll') =>
       request<{ data: { jobName: string; result: unknown } }>(`/api/v1/settings/schedules/trigger/${jobName}`, { method: 'POST' }),
     
     reloadScheduler: () =>

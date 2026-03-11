@@ -29,7 +29,7 @@ export const TestPipelineButton = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [steps, setSteps] = useState<PipelineStep[]>([
-    { id: 'import', name: 'Import 5 Apollo Solar Contacts', status: 'pending' },
+    { id: 'import', name: 'Import Shovels Permit Contacts', status: 'pending' },
     { id: 'enrich', name: 'Enrich Contact Data', status: 'pending' },
     { id: 'merge', name: 'Merge Duplicates', status: 'pending' },
     { id: 'validate', name: 'Validate Emails & Phones', status: 'pending' },
@@ -55,17 +55,13 @@ export const TestPipelineButton = () => {
       // Step 1: Import Apollo Solar Contacts
       updateStep('import', { status: 'running' });
       try {
-        const importResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1/contractors/apollo/solar`, {
+        const importResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1/settings/schedules/trigger/shovels`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${import.meta.env.VITE_API_KEY}`,
           },
-          body: JSON.stringify({ 
-            perPage: 5, 
-            enrichLimit: 5, 
-            page: 1 
-          }),
+          body: JSON.stringify({}),
         });
 
         if (!importResponse.ok) {

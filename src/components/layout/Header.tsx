@@ -1,5 +1,14 @@
-import { Bell, ChevronDown, Search, Wifi, WifiOff } from "lucide-react";
+import { Bell, Search, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 interface HeaderProps {
   title: string;
@@ -9,63 +18,71 @@ interface HeaderProps {
 
 export const Header = ({ title, subtitle, isWebSocketConnected }: HeaderProps) => {
   return (
-    <header className="h-20 bg-card border-b border-border px-6 flex items-center justify-between backdrop-blur-sm">
-      {/* Left section */}
-      <div>
-        <h2 className="text-2xl font-bold text-foreground tracking-tight">{title}</h2>
-        {subtitle && (
-          <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
-        )}
+    <header className="h-14 bg-background border-b border-border px-6 flex items-center justify-between">
+      {/* Left section - Breadcrumbs/Title */}
+      <div className="flex items-center gap-4">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="#">Platform</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{title}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
       {/* Right section */}
       <div className="flex items-center gap-4">
         {/* Search */}
-        <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+        <div className="relative hidden md:block">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search..."
-            className="pl-10 pr-4 py-2.5 bg-secondary/50 rounded-xl text-sm w-64 border border-transparent focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all duration-200 backdrop-blur-sm"
+            className="pl-9 pr-4 py-1.5 bg-muted/50 rounded-md text-sm w-64 border-transparent focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background transition-all"
           />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </div>
         </div>
 
         {/* WebSocket connection status */}
         {isWebSocketConnected !== undefined && (
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-            isWebSocketConnected 
-              ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30' 
-              : 'bg-muted text-muted-foreground border-border'
-          }`}>
+          <div className="hidden sm:flex items-center gap-2">
             {isWebSocketConnected ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-soft shadow-lg shadow-emerald-500/50" />
-                <Wifi className="w-3.5 h-3.5" />
-                <span>System Live</span>
-              </>
+              <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-md">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                Connected
+              </div>
             ) : (
-              <>
-                <WifiOff className="w-3.5 h-3.5" />
-                <span>Offline</span>
-              </>
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-md">
+                <WifiOff className="w-3 h-3" />
+                Offline
+              </div>
             )}
           </div>
         )}
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative hover:bg-primary/10 transition-colors rounded-xl">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive shadow-lg shadow-destructive/50" />
+        <Button variant="ghost" size="icon" className="relative w-8 h-8 rounded-full">
+          <Bell className="w-4 h-4 text-muted-foreground" />
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
         </Button>
 
         {/* User */}
-        <button className="flex items-center gap-2.5 pl-4 border-l border-border hover:bg-secondary/50 rounded-r-xl pr-3 py-2 transition-all group">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all">
-            <span className="text-sm font-semibold text-white">JL</span>
-          </div>
-          <span className="text-sm font-medium">James Louis</span>
-          <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-        </button>
+        <div className="flex items-center gap-2 pl-4 border-l border-border">
+          <Avatar className="w-8 h-8 rounded-md">
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium rounded-md">JL</AvatarFallback>
+          </Avatar>
+        </div>
       </div>
     </header>
   );

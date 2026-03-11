@@ -211,69 +211,32 @@ export interface Settings {
   linkedinGloballyEnabled: boolean;
   defaultEmailCampaignId?: string | null;
   defaultSmsCampaignId?: string | null;
-  // Apify (Google Maps) Scraper Settings
-  apifyQuery?: string | null;
-  apifyLocation?: string | null;
-  apifyMaxResults?: number;
-  apifyMinRating?: number | null;
-  apifyRequirePhone?: boolean;
-  apifyRequireWebsite?: boolean;
-  apifySkipClosed?: boolean;
-  // Apollo Scraper Settings
-  apolloIndustry?: string | null;
-  apolloPersonTitles?: string[];
-  apolloLocations?: string[];
-  apolloExcludeLocations?: string[];
-  apolloEmployeesMin?: number | null;
-  apolloEmployeesMax?: number | null;
-  apolloRevenueMin?: number | null;
-  apolloRevenueMax?: number | null;
-  apolloEnrichLimit?: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ApifyScraperSettings {
-  searchTerms: string[];
-  locations: string[];
-  industries: string[];
-  maxResults: number;
-  minRating: number;
-  requirePhone: boolean;
-  requireWebsite: boolean;
-  skipClosed: boolean;
-  language?: string;
-  searchMatching?: 'all' | 'exact';
-  scrapePlaceDetails?: boolean;
-  scrapeContacts?: boolean;
-  scrapeReviews?: boolean;
-  maxReviews?: number;
-  scrapeSocialMedia?: any;
-  minReviewCount?: number;
+export interface EmployeeFilterSettings {
+  seniorityFilter: string[];
+  departmentFilter: string[];
+  titleInclude: string[];
+  titleExclude: string[];
 }
 
-export interface ApolloScraperSettings {
-  industry: string;
-  personTitles: string[];
+export interface ShovelsScraperSettings {
+  permitTypes: string[];
+  geoIds: string[];
   locations: string[];
-  excludeLocations: string[];
-  employeesMin: number | null;
-  employeesMax: number | null;
-  revenueMin: number | null;
-  revenueMax: number | null;
-  enrichLimit: number;
-  enrichPhones: boolean;
-  searchKeywords?: string;
-  personLocations?: string[];
-  personSeniorities?: string[];
-  organizationKeywordTags?: string[];
-  negativeKeywordTags?: string[];
-  technologies?: string[];
-  industryTagIds?: string[];
-  employeeGrowthRate?: string;
-  fundingStage?: string;
-  page?: number;
-  perPage?: number;
+  dateRangeDays: number;
+  maxResults: number;
+  enableEmployees: boolean;
+  employeeFilter: EmployeeFilterSettings;
+}
+
+export interface PermitRoutingSettings {
+  permitRouteMode: string;
+  permitEmailCampaignId: string | null;
+  permitGhlWorkflowId: string | null;
+  permitSmsFallbackEnabled: boolean;
 }
 
 export interface PipelineControlSettings {
@@ -284,8 +247,7 @@ export interface PipelineControlSettings {
   maintenanceMode: boolean;
   maintenanceMessage: string | null;
   schedulerEnabled: boolean;
-  scrapeJobEnabled: boolean;
-  apolloJobEnabled: boolean;
+  shovelsJobEnabled: boolean;
   enrichJobEnabled: boolean;
   mergeJobEnabled: boolean;
   validateJobEnabled: boolean;
@@ -301,23 +263,20 @@ export interface ScheduleTemplate {
   icon: string;
   targetLeads: number;
   schedules: {
-    scrapeJobCron: string;
-    apolloJobCron: string;
+    shovelsJobCron: string;
     enrichJobCron: string;
     mergeJobCron: string;
     validateJobCron: string;
     enrollJobCron: string;
   };
   estimatedCosts: {
-    apollo: string;
-    apify: string;
+    shovels: string;
   };
 }
 
 export interface ScheduleSettings {
   scheduleTemplate: string;
-  scrapeJobCron: string;
-  apolloJobCron: string;
+  shovelsJobCron: string;
   enrichJobCron: string;
   mergeJobCron: string;
   validateJobCron: string;
@@ -326,10 +285,9 @@ export interface ScheduleSettings {
   templateDescription: string | null;
   templateIcon: string | null;
   targetLeads: number | null;
-  estimatedCosts: { apollo: string; apify: string } | null;
+  estimatedCosts: { shovels: string } | null;
   scheduleDescriptions: {
-    scrape: string;
-    apollo: string;
+    shovels: string;
     enrich: string;
     merge: string;
     validate: string;
@@ -342,8 +300,7 @@ export interface ScheduleSettings {
 }
 
 export interface UpdateSchedulesInput {
-  scrapeJobCron?: string;
-  apolloJobCron?: string;
+  shovelsJobCron?: string;
   enrichJobCron?: string;
   mergeJobCron?: string;
   validateJobCron?: string;
