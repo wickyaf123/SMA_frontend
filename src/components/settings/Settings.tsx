@@ -17,11 +17,11 @@ import {
   Linkedin, Zap, AlertCircle, Loader2, Moon, Sun,
   MessageSquare, Check, Edit2, Star, X, Search, MapPin, Building2, Users, DollarSign,
   Power, Mail, Phone, StopCircle, PlayCircle, AlertTriangle, ShieldAlert,
-  Route, ArrowUpDown, GripVertical, TestTube, Filter
+  Route, ArrowUpDown, GripVertical, TestTube, Filter, Home
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useSettings, useToggleLinkedIn, useTemplates, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useSetDefaultTemplate, useShovelsSettings, useUpdateShovelsSettings, usePipelineControls, useUpdatePipelineControls, useEmergencyStop, useResumePipeline, useScheduleTemplates, useScheduleSettings, useApplyScheduleTemplate, useUpdateSchedules, useTriggerScheduledJob, useRoutingRules, useRoutingFilterOptions, useCreateRoutingRule, useUpdateRoutingRule, useDeleteRoutingRule, useReorderRoutingRules, useTestRouting, useCampaigns, useSyncFromInstantly, useExampleContacts, usePermitRoutingSettings, useUpdatePermitRoutingSettings } from "@/hooks/useApi";
-import type { MessageTemplate, ShovelsScraperSettings, PipelineControlSettings, ScheduleTemplate, ScheduleSettings, CampaignRoutingRule, CreateRoutingRuleInput, UpdateRoutingRuleInput, RoutingMatchMode } from "@/types/api";
+import { useSettings, useToggleLinkedIn, useTemplates, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useSetDefaultTemplate, useShovelsSettings, useUpdateShovelsSettings, usePipelineControls, useUpdatePipelineControls, useEmergencyStop, useResumePipeline, useScheduleTemplates, useScheduleSettings, useApplyScheduleTemplate, useUpdateSchedules, useTriggerScheduledJob, useRoutingRules, useRoutingFilterOptions, useCreateRoutingRule, useUpdateRoutingRule, useDeleteRoutingRule, useReorderRoutingRules, useTestRouting, useCampaigns, useSyncFromInstantly, useExampleContacts, usePermitRoutingSettings, useUpdatePermitRoutingSettings, useHomeownerSettings, useUpdateHomeownerSettings, useTriggerRealieEnrich } from "@/hooks/useApi";
+import type { MessageTemplate, ShovelsScraperSettings, HomeownerScraperSettings, PipelineControlSettings, ScheduleTemplate, ScheduleSettings, CampaignRoutingRule, CreateRoutingRuleInput, UpdateRoutingRuleInput, RoutingMatchMode } from "@/types/api";
 
 // Job definitions - these map to pipeline control settings
 const jobDefinitions = [
@@ -31,6 +31,13 @@ const jobDefinitions = [
     schedule: "0 7 * * *",
     description: "Pull licensed contractors from building permit records via Shovels API",
     settingKey: "shovelsJobEnabled" as const,
+  },
+  {
+    id: "homeowner",
+    name: "Homeowner Scraper",
+    schedule: "0 9 * * *",
+    description: "Pull homeowner data from Shovels residents API and enrich with Realie property data",
+    settingKey: "homeownerJobEnabled" as const,
   },
   {
     id: "enrich",
@@ -919,6 +926,26 @@ export const Settings = () => {
     }
   }, [shovelsSettingsData]);
 
+  // Homeowner scraper hooks
+  const { data: homeownerSettingsData } = useHomeownerSettings();
+  const updateHomeownerSettings = useUpdateHomeownerSettings();
+  const triggerRealieEnrich = useTriggerRealieEnrich();
+
+  const [homeownerForm, setHomeownerForm] = useState<HomeownerScraperSettings>({
+    geoIds: [],
+    locations: [],
+    maxResults: 100,
+    realieEnrich: true,
+    useShovelsGeoIds: true,
+    fetchPermitDetails: true,
+  });
+
+  useEffect(() => {
+    if (homeownerSettingsData?.data) {
+      setHomeownerForm(homeownerSettingsData.data);
+    }
+  }, [homeownerSettingsData]);
+
   const handleSave = (section: string) => {
     toast({
       title: "Settings saved",
@@ -1013,7 +1040,24 @@ export const Settings = () => {
   };
 
   return (
-    <div className="flex-1 p-6 overflow-auto">
+    <div className="flex-1 overflow-auto bg-background animate-fade-in relative">
+      {/* Header */}
+      <div className="px-6 py-5 md:px-8 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Workspace Settings</h1>
+            <p className="text-sm text-muted-foreground mt-1">Manage global preferences, limits, and system configurations.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => handleSave('All')} className="h-9 gap-2 shadow-sm border-border/50 bg-background/50 backdrop-blur-sm">
+              <Save className="w-4 h-4" />
+              <span>Save Changes</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
       <Tabs defaultValue="pipeline" className="space-y-6">
         <TabsList className="bg-muted/50 border border-border">
           <TabsTrigger value="pipeline" className="gap-2">
@@ -1258,6 +1302,19 @@ export const Settings = () => {
                       <Switch
                         checked={pipelineControls?.shovelsJobEnabled ?? false}
                         onCheckedChange={(checked) => updatePipelineControls.mutate({ shovelsJobEnabled: checked })}
+                        disabled={updatePipelineControls.isPending || !pipelineControls?.schedulerEnabled}
+                      />
+                    </div>
+
+                    {/* Homeowner Job */}
+                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                      <div>
+                        <p className="font-medium text-sm">Homeowner Scraper</p>
+                        <p className="text-xs text-muted-foreground">Shovels residents + Realie property enrichment</p>
+                      </div>
+                      <Switch
+                        checked={pipelineControls?.homeownerJobEnabled ?? false}
+                        onCheckedChange={(checked) => updatePipelineControls.mutate({ homeownerJobEnabled: checked })}
                         disabled={updatePipelineControls.isPending || !pipelineControls?.schedulerEnabled}
                       />
                     </div>
@@ -1855,10 +1912,129 @@ export const Settings = () => {
               </CardContent>
             </Card>
 
+            {/* Homeowner Scraper Settings */}
+            <Card className="bg-card/50 border-border">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Homeowner Scraper</CardTitle>
+                    <CardDescription>Pull homeowner data from Shovels residents endpoint and enrich with Realie property data</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => triggerJob.mutate('homeowner')}
+                      disabled={triggerJob.isPending}
+                    >
+                      {triggerJob.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
+                      Run Now
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => updateHomeownerSettings.mutate(homeownerForm)}
+                      disabled={updateHomeownerSettings.isPending}
+                    >
+                      {updateHomeownerSettings.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                  <Switch
+                    checked={homeownerForm.useShovelsGeoIds}
+                    onCheckedChange={(checked) => setHomeownerForm({ ...homeownerForm, useShovelsGeoIds: checked })}
+                  />
+                  <div>
+                    <Label>Use Shovels Contractor Geo IDs</Label>
+                    <p className="text-xs text-muted-foreground">When enabled, the homeowner scraper uses the same geo IDs configured for the contractor scraper above — you only need to configure geo IDs once</p>
+                  </div>
+                </div>
+
+                {!homeownerForm.useShovelsGeoIds && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="homeownerGeoIds">Geo IDs (Zip Codes)</Label>
+                      <Textarea
+                        id="homeownerGeoIds"
+                        placeholder="Enter one geo ID per line (e.g., 75093)"
+                        rows={4}
+                        value={(homeownerForm.geoIds || []).join('\n')}
+                        onChange={(e) => setHomeownerForm({
+                          ...homeownerForm,
+                          geoIds: e.target.value.split('\n').filter(Boolean),
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="homeownerLocations">Location Labels</Label>
+                      <Textarea
+                        id="homeownerLocations"
+                        placeholder="Enter one city name per line (must match geo IDs order)"
+                        rows={4}
+                        value={(homeownerForm.locations || []).join('\n')}
+                        onChange={(e) => setHomeownerForm({
+                          ...homeownerForm,
+                          locations: e.target.value.split('\n').filter(Boolean),
+                        })}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="homeownerMaxResults">Max Results Per Search</Label>
+                    <Input
+                      id="homeownerMaxResults"
+                      type="number"
+                      min={10}
+                      max={1000}
+                      value={homeownerForm.maxResults}
+                      onChange={(e) => setHomeownerForm({ ...homeownerForm, maxResults: parseInt(e.target.value) || 100 })}
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 pt-6">
+                    <Switch
+                      checked={homeownerForm.realieEnrich}
+                      onCheckedChange={(checked) => setHomeownerForm({ ...homeownerForm, realieEnrich: checked })}
+                    />
+                    <div>
+                      <Label>Realie Property Enrichment</Label>
+                      <p className="text-xs text-muted-foreground">Auto-enrich homeowners with property valuation, tax, and mortgage data from Realie</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={homeownerForm.fetchPermitDetails}
+                    onCheckedChange={(checked) => setHomeownerForm({ ...homeownerForm, fetchPermitDetails: checked })}
+                  />
+                  <div>
+                    <Label>Fetch Permit Details</Label>
+                    <p className="text-xs text-muted-foreground">For each homeowner with permit IDs, fetch the full permit record (date, description, job value, fees, jurisdiction) from Shovels</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => triggerRealieEnrich.mutate(50)}
+                    disabled={triggerRealieEnrich.isPending}
+                  >
+                    {triggerRealieEnrich.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                    Enrich Pending Homeowners with Realie
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Quick Tips */}
             <Card className="bg-card/50 border-border">
               <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                     <div className="flex items-start gap-3">
                       <Building2 className="w-5 h-5 text-blue-500 mt-0.5" />
@@ -1867,6 +2043,18 @@ export const Settings = () => {
                         <p className="text-sm text-muted-foreground mt-1">
                           Pulls contractor leads from building permit records. Configure permit types 
                           and geo IDs above, then Clay handles email/phone enrichment automatically.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <Home className="w-5 h-5 text-purple-500 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-foreground">Homeowner Scraper</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Pulls residents from Shovels by geo ID. Homeowners get their own table and 
+                          are enriched with property valuation data from Realie API.
                         </p>
                       </div>
                     </div>
@@ -2205,6 +2393,7 @@ export const Settings = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 };

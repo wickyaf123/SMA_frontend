@@ -98,6 +98,36 @@ export interface Contact {
   sourceId?: string | null;
   apolloId?: string | null;
   
+  permitType?: string | null;
+  permitCity?: string | null;
+  licenseNumber?: string | null;
+  shovelsContractorId?: string | null;
+  shovelsEmployeeId?: string | null;
+
+  // Promoted permit fields
+  permitDate?: string | null;
+  permitDateFriendly?: string | null;
+  permitMonthsAgo?: number | null;
+  permitDescription?: string | null;
+  permitStatus?: string | null;
+  permitNumber?: string | null;
+  permitJobValue?: number | null;
+  permitFees?: number | null;
+  permitJurisdiction?: string | null;
+
+  // Promoted contractor fields
+  avgJobValue?: number | null;
+  totalJobValue?: number | null;
+  permitCount?: number | null;
+  revenue?: string | null;
+  employeeCount?: string | null;
+  website?: string | null;
+  rating?: number | null;
+  reviewCount?: number | null;
+  seniorityLevel?: string | null;
+  department?: string | null;
+  tagTally?: Record<string, number> | null;
+  
   dataSources: string[];
   dataQuality: number;
   hunterEnrichedAt?: string | null;
@@ -215,6 +245,161 @@ export interface Settings {
   updatedAt: string;
 }
 
+export interface Homeowner {
+  id: string;
+  shovelsResidentId: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  fullName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  street?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  county?: string | null;
+  gender?: string | null;
+  ageRange?: string | null;
+  isMarried?: boolean | null;
+  hasChildren?: boolean | null;
+  incomeRange?: string | null;
+  netWorth?: string | null;
+  education?: string | null;
+  homeownerFlag?: string | null;
+
+  propertyAddress?: string | null;
+  propertyValue?: string | null;
+  propertyType?: string | null;
+  yearBuilt?: string | null;
+  lotSize?: string | null;
+  livingArea?: string | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+
+  permitIds: string[];
+  permitType?: string | null;
+  permitCity?: string | null;
+  geoId?: string | null;
+
+  // Permit detail fields
+  permitDate?: string | null;
+  permitDateFriendly?: string | null;
+  permitMonthsAgo?: number | null;
+  permitDescription?: string | null;
+  permitJobValue?: number | null;
+  permitStatus?: string | null;
+  permitNumber?: string | null;
+  permitFees?: number | null;
+  permitJurisdiction?: string | null;
+
+  realieEnriched: boolean;
+  realieEnrichedAt?: string | null;
+  assessedValue?: number | null;
+  taxAmount?: number | null;
+  avmValue?: number | null;
+  avmMin?: number | null;
+  avmMax?: number | null;
+  ownerName?: string | null;
+  totalBedrooms?: number | null;
+  totalBathrooms?: number | null;
+  buildingArea?: number | null;
+  stories?: number | null;
+  hasPool?: boolean | null;
+  hasGarage?: boolean | null;
+  garageCount?: number | null;
+  fireplaceCount?: number | null;
+  constructionType?: string | null;
+  roofType?: string | null;
+  foundationType?: string | null;
+  lienCount?: number | null;
+  lienBalance?: number | null;
+  equityEstimate?: number | null;
+  loanToValue?: number | null;
+  lastTransferDate?: string | null;
+  lastTransferPrice?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+
+  status: string;
+  source: string;
+  dataSources: string[];
+  tags: string[];
+  enrichmentData?: Record<string, unknown> | null;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Connection {
+  id: string;
+  contactId: string;
+  homeownerId: string;
+  permitId: string;
+  permitType?: string | null;
+  permitDate?: string | null;
+  permitJobValue?: number | null;
+  permitDescription?: string | null;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+  contact?: {
+    id: string;
+    fullName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    city?: string | null;
+    state?: string | null;
+    shovelsContractorId?: string | null;
+    permitType?: string | null;
+    status: ContactStatus;
+  };
+  homeowner?: {
+    id: string;
+    fullName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    street?: string | null;
+    city?: string | null;
+    state?: string | null;
+    avmValue?: number | null;
+    propertyType?: string | null;
+    realieEnriched?: boolean;
+  };
+}
+
+export interface ConnectionStats {
+  totalConnections: number;
+  uniqueContractors: number;
+  uniqueHomeowners: number;
+}
+
+export interface ConnectionResolveResult {
+  success: boolean;
+  total: number;
+  connected: number;
+  noContractor: number;
+  errors: number;
+  duration: number;
+}
+
+export interface HomeownerScraperSettings {
+  geoIds: string[];
+  locations: string[];
+  maxResults: number;
+  realieEnrich: boolean;
+  useShovelsGeoIds: boolean;
+  fetchPermitDetails: boolean;
+}
+
+export interface HomeownerStats {
+  total: number;
+  enriched: number;
+  withEmail: number;
+  withPhone: number;
+  byState: Record<string, number>;
+  byCity: Record<string, number>;
+}
+
 export interface EmployeeFilterSettings {
   seniorityFilter: string[];
   departmentFilter: string[];
@@ -236,6 +421,8 @@ export interface PermitRoutingSettings {
   permitRouteMode: string;
   permitEmailCampaignId: string | null;
   permitGhlWorkflowId: string | null;
+  permitGhlEmailReplyWorkflowId: string | null;
+  permitGhlSmsReplyWorkflowId: string | null;
   permitSmsFallbackEnabled: boolean;
 }
 
@@ -248,6 +435,8 @@ export interface PipelineControlSettings {
   maintenanceMessage: string | null;
   schedulerEnabled: boolean;
   shovelsJobEnabled: boolean;
+  homeownerJobEnabled: boolean;
+  connectionJobEnabled: boolean;
   enrichJobEnabled: boolean;
   mergeJobEnabled: boolean;
   validateJobEnabled: boolean;
@@ -628,6 +817,7 @@ export const sourceLabels: Record<string, string> = {
   hunter: 'Hunter.io',
   csv: 'CSV Import',
   scraper: 'Scraper',
+  shovels: 'Shovels',
 };
 
 // ==================== CAMPAIGN ROUTING ====================

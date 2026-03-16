@@ -29,6 +29,7 @@ import {
   BarChart3,
   Reply,
   RefreshCw,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -77,7 +78,15 @@ import {
   useContactActivity,
   useContactMessages,
   useSyncFromInstantly,
+  useHomeowners,
+  useHomeownerStats,
+  useDeleteHomeowner,
+  useTriggerRealieEnrich,
+  useConnections,
+  useConnectionStats,
+  useResolveConnections,
 } from "@/hooks/useApi";
+import type { Homeowner, Connection } from "@/types/api";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import type { 
@@ -98,7 +107,7 @@ type SortField = "fullName" | "company" | "status" | "createdAt" | "googleRating
 type SortDirection = "asc" | "desc";
 
 // Column visibility configuration
-type ColumnKey = "contact" | "company" | "validation" | "status" | "source" | "added" | "lastReply" | "campaign" | "dataQuality" | "lastContacted" | "googleRating";
+type ColumnKey = "contact" | "company" | "validation" | "status" | "source" | "added" | "lastReply" | "campaign" | "dataQuality" | "lastContacted" | "googleRating" | "permitType" | "permitDate" | "permitCity" | "tags";
 
 const defaultColumnVisibility: Record<ColumnKey, boolean> = {
   contact: true,
@@ -112,9 +121,18 @@ const defaultColumnVisibility: Record<ColumnKey, boolean> = {
   dataQuality: true,
   lastContacted: true,
   googleRating: true,
+  permitType: false,
+  permitDate: false,
+  permitCity: false,
+  tags: false,
 };
 
+type ViewMode = "contractors" | "homeowners" | "connections";
+
 export const Leads = () => {
+  // View mode toggle
+  const [viewMode, setViewMode] = useState<ViewMode>("contractors");
+
   // UI State
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -187,6 +205,33 @@ export const Leads = () => {
   const importApollo = useImportApollo();
   const enrollContacts = useEnrollContacts();
   const syncFromInstantly = useSyncFromInstantly();
+
+  // Homeowner hooks
+  const { data: homeownersData, isLoading: homeownersLoading } = useHomeowners({
+    search: viewMode === "homeowners" ? (search || undefined) : undefined,
+    page: viewMode === "homeowners" ? (showAll ? 1 : currentPage) : 1,
+    limit: viewMode === "homeowners" ? (showAll ? 1000 : itemsPerPage) : 1,
+    sort: "createdAt",
+    order: sortDirection,
+  });
+  const { data: homeownerStatsData } = useHomeownerStats();
+  const deleteHomeowner = useDeleteHomeowner();
+  const triggerRealieEnrich = useTriggerRealieEnrich();
+  const [selectedHomeowner, setSelectedHomeowner] = useState<Homeowner | null>(null);
+  const [isHomeownerDetailOpen, setIsHomeownerDetailOpen] = useState(false);
+
+  // Connection hooks
+  const { data: connectionsData, isLoading: connectionsLoading } = useConnections({
+    search: viewMode === "connections" ? (search || undefined) : undefined,
+    page: viewMode === "connections" ? (showAll ? 1 : currentPage) : 1,
+    limit: viewMode === "connections" ? (showAll ? 1000 : itemsPerPage) : 1,
+    sort: "createdAt",
+    order: sortDirection,
+  });
+  const { data: connectionStatsData } = useConnectionStats();
+  const resolveConnections = useResolveConnections();
+  const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
+  const [isConnectionDetailOpen, setIsConnectionDetailOpen] = useState(false);
   
   // Poll import status
   const { data: importStatus } = useImportStatus(importJobId || "", {
@@ -481,7 +526,51 @@ export const Leads = () => {
   }
 
   return (
-    <div className="flex-1 overflow-auto p-6 space-y-4 animate-fade-in">
+    <div className="flex-1 overflow-auto bg-background animate-fade-in relative">
+      {/* Header section for Leads */}
+      <div className="px-6 py-5 md:px-8 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Leads Database</h1>
+            <p className="text-sm text-muted-foreground mt-1">Manage, filter, and track all your prospective contacts.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm border-border/50 bg-background/50 backdrop-blur-sm" onClick={handleExport}>
+              <Download className="w-4 h-4" />
+              <span>Export CSV</span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="h-9 gap-2 shadow-sm">
+                  <Upload className="w-4 h-4" />
+                  <span>Import Data</span>
+                  <ChevronDown className="w-3 h-3 opacity-70" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 shadow-xl border-border/50">
+                <DropdownMenuItem onClick={() => setIsApolloImportOpen(true)} className="cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md bg-blue-500/10 flex items-center justify-center">
+                      <Download className="w-3 h-3 text-blue-500" />
+                    </div>
+                    <span>Import from Apollo</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md bg-green-500/10 flex items-center justify-center">
+                      <Upload className="w-3 h-3 text-green-500" />
+                    </div>
+                    <span>Upload CSV File</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 md:p-8 space-y-6 max-w-[1600px] mx-auto">
       {/* Import Progress Banner */}
       {importJobId && importStatus?.data && importStatus.data.status === "PROCESSING" && (
         <div className="flex items-center gap-3 p-4 bg-info/10 border border-info/20 rounded-xl animate-fade-in">
@@ -529,11 +618,511 @@ export const Leads = () => {
         </div>
       )}
 
+      {/* View Mode Toggle */}
+      <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg w-fit">
+        <button
+          onClick={() => { setViewMode("contractors"); setCurrentPage(1); setSelectedIds(new Set()); setSearch(""); }}
+          className={cn(
+            "px-4 py-2 text-sm font-medium rounded-md transition-all",
+            viewMode === "contractors"
+              ? "bg-background shadow-sm text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Building className="w-4 h-4 inline mr-2" />
+          Contractors
+        </button>
+        <button
+          onClick={() => { setViewMode("homeowners"); setCurrentPage(1); setSelectedIds(new Set()); setSearch(""); }}
+          className={cn(
+            "px-4 py-2 text-sm font-medium rounded-md transition-all",
+            viewMode === "homeowners"
+              ? "bg-background shadow-sm text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Users className="w-4 h-4 inline mr-2" />
+          Homeowners
+          {homeownerStatsData?.data?.total ? (
+            <span className="ml-2 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+              {homeownerStatsData.data.total}
+            </span>
+          ) : null}
+        </button>
+        <button
+          onClick={() => { setViewMode("connections"); setCurrentPage(1); setSelectedIds(new Set()); setSearch(""); }}
+          className={cn(
+            "px-4 py-2 text-sm font-medium rounded-md transition-all",
+            viewMode === "connections"
+              ? "bg-background shadow-sm text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Link2 className="w-4 h-4 inline mr-2" />
+          Connections
+          {connectionStatsData?.data?.totalConnections ? (
+            <span className="ml-2 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+              {connectionStatsData.data.totalConnections}
+            </span>
+          ) : null}
+        </button>
+      </div>
+
+      {viewMode === "homeowners" && (
+        <div className="space-y-4">
+          <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 glass-card p-4">
+            <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto flex-1">
+              <div className="relative w-full sm:w-64 md:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search homeowners..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                  className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/70"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => triggerRealieEnrich.mutate(50)}
+                disabled={triggerRealieEnrich.isPending}
+                className="h-9 text-xs"
+              >
+                {triggerRealieEnrich.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
+                Enrich with Realie
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1/homeowners/export`, '_blank')}
+                className="h-9 text-xs"
+              >
+                <Download className="w-3.5 h-3.5 mr-1" />
+                Export CSV
+              </Button>
+            </div>
+          </div>
+
+          {/* Stats cards */}
+          {homeownerStatsData?.data && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="glass-card p-3">
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-xl font-bold">{homeownerStatsData.data.total}</p>
+              </div>
+              <div className="glass-card p-3">
+                <p className="text-xs text-muted-foreground">Enriched (Realie)</p>
+                <p className="text-xl font-bold">{homeownerStatsData.data.enriched}</p>
+              </div>
+              <div className="glass-card p-3">
+                <p className="text-xs text-muted-foreground">With Email</p>
+                <p className="text-xl font-bold">{homeownerStatsData.data.withEmail}</p>
+              </div>
+              <div className="glass-card p-3">
+                <p className="text-xs text-muted-foreground">With Phone</p>
+                <p className="text-xl font-bold">{homeownerStatsData.data.withPhone}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Homeowner Table */}
+          <div className="glass-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border/50 bg-muted/30">
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Name</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Contact</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Address</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Property</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Permit</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Value</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Enriched</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Added</th>
+                    <th className="p-4 text-right text-sm font-medium text-muted-foreground"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {homeownersLoading ? (
+                    <tr><td colSpan={9} className="p-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                  ) : !homeownersData?.data?.length ? (
+                    <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No homeowners found. Configure Shovels homeowner scraper in Settings.</td></tr>
+                  ) : homeownersData.data.map((ho) => (
+                    <tr
+                      key={ho.id}
+                      className="border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer"
+                      onClick={() => { setSelectedHomeowner(ho); setIsHomeownerDetailOpen(true); }}
+                    >
+                      <td className="p-4">
+                        <div>
+                          <p className="font-medium text-sm">{ho.firstName} {ho.lastName}</p>
+                          {ho.homeownerFlag && <span className="text-[10px] bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded">{ho.homeownerFlag}</span>}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="space-y-0.5">
+                          {ho.email && <p className="text-xs text-muted-foreground flex items-center gap-1"><Mail className="w-3 h-3" />{ho.email}</p>}
+                          {ho.phone && <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{ho.phone}</p>}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-sm">{ho.street || "—"}</p>
+                        <p className="text-xs text-muted-foreground">{[ho.city, ho.state, ho.zipCode].filter(Boolean).join(", ")}</p>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-sm">{ho.propertyType || "—"}</p>
+                        <p className="text-xs text-muted-foreground">{ho.yearBuilt ? `Built ${ho.yearBuilt}` : ""} {ho.bedrooms ? `${ho.bedrooms}bd` : ""} {ho.bathrooms ? `${ho.bathrooms}ba` : ""}</p>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-sm">{ho.permitDateFriendly || "—"}</p>
+                        <p className="text-xs text-muted-foreground">{ho.permitType || ""} {ho.permitMonthsAgo != null ? `(${ho.permitMonthsAgo}mo ago)` : ""}</p>
+                      </td>
+                      <td className="p-4">
+                        {ho.avmValue ? (
+                          <p className="text-sm font-medium">${Math.round(ho.avmValue).toLocaleString()}</p>
+                        ) : ho.propertyValue ? (
+                          <p className="text-sm">{ho.propertyValue}</p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">—</p>
+                        )}
+                        {ho.assessedValue && <p className="text-xs text-muted-foreground">Assessed: ${Math.round(ho.assessedValue).toLocaleString()}</p>}
+                      </td>
+                      <td className="p-4">
+                        <span className={cn(
+                          "text-xs px-2 py-1 rounded-full",
+                          ho.realieEnriched ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
+                        )}>
+                          {ho.realieEnriched ? "Yes" : "Pending"}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-xs text-muted-foreground">{new Date(ho.createdAt).toLocaleDateString()}</p>
+                      </td>
+                      <td className="p-4 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); deleteHomeowner.mutate(ho.id); }}
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Homeowner Pagination */}
+            {homeownersData?.pagination && homeownersData.pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
+                <p className="text-xs text-muted-foreground">
+                  {homeownersData.pagination.total} homeowners
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)} className="h-8 w-8 p-0">
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-xs px-2">{currentPage} / {homeownersData.pagination.totalPages}</span>
+                  <Button variant="ghost" size="sm" disabled={currentPage >= homeownersData.pagination.totalPages} onClick={() => setCurrentPage(p => p + 1)} className="h-8 w-8 p-0">
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Homeowner Detail Modal */}
+          <Dialog open={isHomeownerDetailOpen} onOpenChange={setIsHomeownerDetailOpen}>
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+              {selectedHomeowner && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>{selectedHomeowner.firstName} {selectedHomeowner.lastName}</DialogTitle>
+                    <DialogDescription>Homeowner Details</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Email</p>
+                        <p className="font-medium text-sm">{selectedHomeowner.email || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Phone</p>
+                        <p className="font-medium text-sm">{selectedHomeowner.phone || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Address</p>
+                        <p className="font-medium text-sm">{selectedHomeowner.street || "—"}</p>
+                        <p className="text-xs text-muted-foreground">{[selectedHomeowner.city, selectedHomeowner.state, selectedHomeowner.zipCode].filter(Boolean).join(", ")}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">County</p>
+                        <p className="font-medium text-sm">{selectedHomeowner.county || "—"}</p>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <h4 className="text-sm font-semibold mb-3">Demographics</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div><p className="text-xs text-muted-foreground">Gender</p><p className="text-sm">{selectedHomeowner.gender || "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Age Range</p><p className="text-sm">{selectedHomeowner.ageRange || "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Income</p><p className="text-sm">{selectedHomeowner.incomeRange || "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Net Worth</p><p className="text-sm">{selectedHomeowner.netWorth || "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Education</p><p className="text-sm">{selectedHomeowner.education || "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Married</p><p className="text-sm">{selectedHomeowner.isMarried === true ? "Yes" : selectedHomeowner.isMarried === false ? "No" : "—"}</p></div>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <h4 className="text-sm font-semibold mb-3">Property Details</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div><p className="text-xs text-muted-foreground">Property Type</p><p className="text-sm">{selectedHomeowner.propertyType || "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Year Built</p><p className="text-sm">{selectedHomeowner.yearBuilt || "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Bedrooms</p><p className="text-sm">{selectedHomeowner.totalBedrooms ?? selectedHomeowner.bedrooms ?? "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Bathrooms</p><p className="text-sm">{selectedHomeowner.totalBathrooms ?? selectedHomeowner.bathrooms ?? "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Building Area</p><p className="text-sm">{selectedHomeowner.buildingArea ? `${selectedHomeowner.buildingArea.toLocaleString()} sqft` : selectedHomeowner.livingArea || "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Lot Size</p><p className="text-sm">{selectedHomeowner.lotSize || "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Stories</p><p className="text-sm">{selectedHomeowner.stories ?? "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Pool</p><p className="text-sm">{selectedHomeowner.hasPool === true ? "Yes" : selectedHomeowner.hasPool === false ? "No" : "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Garage</p><p className="text-sm">{selectedHomeowner.hasGarage === true ? `Yes (${selectedHomeowner.garageCount || 1})` : selectedHomeowner.hasGarage === false ? "No" : "—"}</p></div>
+                      </div>
+                    </div>
+
+                    {(selectedHomeowner.permitDate || selectedHomeowner.permitDescription || selectedHomeowner.permitNumber) && (
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-semibold mb-3">Permit Details</h4>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div><p className="text-xs text-muted-foreground">Permit Date</p><p className="text-sm">{selectedHomeowner.permitDateFriendly || selectedHomeowner.permitDate || "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Months Ago</p><p className="text-sm">{selectedHomeowner.permitMonthsAgo != null ? `${selectedHomeowner.permitMonthsAgo} mo` : "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Permit #</p><p className="text-sm">{selectedHomeowner.permitNumber || "—"}</p></div>
+                          <div className="col-span-3"><p className="text-xs text-muted-foreground">Description</p><p className="text-sm">{selectedHomeowner.permitDescription || "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Job Value</p><p className="text-sm">{selectedHomeowner.permitJobValue ? `$${selectedHomeowner.permitJobValue.toLocaleString()}` : "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Fees</p><p className="text-sm">{selectedHomeowner.permitFees ? `$${selectedHomeowner.permitFees.toLocaleString()}` : "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Status</p><p className="text-sm">{selectedHomeowner.permitStatus || "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Jurisdiction</p><p className="text-sm">{selectedHomeowner.permitJurisdiction || "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Type</p><p className="text-sm">{selectedHomeowner.permitType || "—"}</p></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedHomeowner.realieEnriched && (
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-semibold mb-3">Valuation & Financial (Realie)</h4>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div><p className="text-xs text-muted-foreground">AVM Value</p><p className="text-sm font-medium">{selectedHomeowner.avmValue ? `$${Math.round(selectedHomeowner.avmValue).toLocaleString()}` : "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">AVM Range</p><p className="text-sm">{selectedHomeowner.avmMin && selectedHomeowner.avmMax ? `$${Math.round(selectedHomeowner.avmMin).toLocaleString()} - $${Math.round(selectedHomeowner.avmMax).toLocaleString()}` : "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Assessed Value</p><p className="text-sm">{selectedHomeowner.assessedValue ? `$${Math.round(selectedHomeowner.assessedValue).toLocaleString()}` : "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Tax Amount</p><p className="text-sm">{selectedHomeowner.taxAmount ? `$${Math.round(selectedHomeowner.taxAmount).toLocaleString()}` : "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Equity Estimate</p><p className="text-sm">{selectedHomeowner.equityEstimate ? `$${Math.round(selectedHomeowner.equityEstimate).toLocaleString()}` : "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">LTV</p><p className="text-sm">{selectedHomeowner.loanToValue ? `${selectedHomeowner.loanToValue.toFixed(1)}%` : "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Liens</p><p className="text-sm">{selectedHomeowner.lienCount ?? "—"}{selectedHomeowner.lienBalance ? ` ($${Math.round(selectedHomeowner.lienBalance).toLocaleString()})` : ""}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Last Transfer</p><p className="text-sm">{selectedHomeowner.lastTransferDate || "—"}{selectedHomeowner.lastTransferPrice ? ` ($${Math.round(selectedHomeowner.lastTransferPrice).toLocaleString()})` : ""}</p></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
+
+      {viewMode === "connections" && (
+        <div className="space-y-4">
+          <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 glass-card p-4">
+            <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto flex-1">
+              <div className="relative w-full sm:w-64 md:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search connections..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                  className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/70"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => resolveConnections.mutate(50)}
+                disabled={resolveConnections.isPending}
+                className="h-9 text-xs"
+              >
+                {resolveConnections.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
+                Resolve Connections
+              </Button>
+            </div>
+          </div>
+
+          {connectionStatsData?.data && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="glass-card p-3">
+                <p className="text-xs text-muted-foreground">Total Connections</p>
+                <p className="text-xl font-bold">{connectionStatsData.data.totalConnections}</p>
+              </div>
+              <div className="glass-card p-3">
+                <p className="text-xs text-muted-foreground">Linked Contractors</p>
+                <p className="text-xl font-bold">{connectionStatsData.data.uniqueContractors}</p>
+              </div>
+              <div className="glass-card p-3">
+                <p className="text-xs text-muted-foreground">Linked Homeowners</p>
+                <p className="text-xl font-bold">{connectionStatsData.data.uniqueHomeowners}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="glass-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border/50 bg-muted/30">
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Contractor</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Homeowner</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Permit Type</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Permit Date</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Job Value</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Location</th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">Linked</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {connectionsLoading ? (
+                    <tr><td colSpan={7} className="p-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                  ) : !connectionsData?.data?.length ? (
+                    <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No connections found. Click "Resolve Connections" to link contractors and homeowners via permits.</td></tr>
+                  ) : connectionsData.data.map((conn) => (
+                    <tr
+                      key={conn.id}
+                      className="border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer"
+                      onClick={() => { setSelectedConnection(conn); setIsConnectionDetailOpen(true); }}
+                    >
+                      <td className="p-4">
+                        <div>
+                          <p className="font-medium text-sm">{conn.contact?.fullName || "Unknown"}</p>
+                          {conn.contact?.email && <p className="text-xs text-muted-foreground">{conn.contact.email}</p>}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div>
+                          <p className="font-medium text-sm">{conn.homeowner?.fullName || "Unknown"}</p>
+                          {conn.homeowner?.street && <p className="text-xs text-muted-foreground">{conn.homeowner.street}</p>}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-sm">{conn.permitType || "—"}</p>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-sm">{conn.permitDate || "—"}</p>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-sm">{conn.permitJobValue ? `$${conn.permitJobValue.toLocaleString()}` : "—"}</p>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-sm">
+                          {[conn.homeowner?.city || conn.contact?.city, conn.homeowner?.state || conn.contact?.state].filter(Boolean).join(", ") || "—"}
+                        </p>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-xs text-muted-foreground">{new Date(conn.createdAt).toLocaleDateString()}</p>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {connectionsData?.pagination && connectionsData.pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
+                <p className="text-xs text-muted-foreground">
+                  {connectionsData.pagination.total} connections
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)} className="h-8 w-8 p-0">
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-xs px-2">{currentPage} / {connectionsData.pagination.totalPages}</span>
+                  <Button variant="ghost" size="sm" disabled={currentPage >= connectionsData.pagination.totalPages} onClick={() => setCurrentPage(p => p + 1)} className="h-8 w-8 p-0">
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Connection Detail Modal */}
+          <Dialog open={isConnectionDetailOpen} onOpenChange={setIsConnectionDetailOpen}>
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+              {selectedConnection && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>Connection Details</DialogTitle>
+                    <DialogDescription>Contractor-Homeowner link via permit</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="glass-card p-4">
+                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                          <Building className="w-4 h-4" /> Contractor
+                        </h4>
+                        <div className="space-y-2">
+                          <div><p className="text-xs text-muted-foreground">Name</p><p className="font-medium text-sm">{selectedConnection.contact?.fullName || "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Email</p><p className="text-sm">{selectedConnection.contact?.email || "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Phone</p><p className="text-sm">{selectedConnection.contact?.phone || "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Location</p><p className="text-sm">{[selectedConnection.contact?.city, selectedConnection.contact?.state].filter(Boolean).join(", ") || "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Status</p><p className="text-sm">{selectedConnection.contact?.status || "—"}</p></div>
+                        </div>
+                      </div>
+                      <div className="glass-card p-4">
+                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                          <Users className="w-4 h-4" /> Homeowner
+                        </h4>
+                        <div className="space-y-2">
+                          <div><p className="text-xs text-muted-foreground">Name</p><p className="font-medium text-sm">{selectedConnection.homeowner?.fullName || "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Email</p><p className="text-sm">{selectedConnection.homeowner?.email || "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Phone</p><p className="text-sm">{selectedConnection.homeowner?.phone || "—"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Address</p><p className="text-sm">{selectedConnection.homeowner?.street || "—"}</p><p className="text-xs text-muted-foreground">{[selectedConnection.homeowner?.city, selectedConnection.homeowner?.state].filter(Boolean).join(", ")}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Property Value</p><p className="text-sm">{selectedConnection.homeowner?.avmValue ? `$${Math.round(selectedConnection.homeowner.avmValue).toLocaleString()}` : "—"}</p></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <h4 className="text-sm font-semibold mb-3">Permit Link</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><p className="text-xs text-muted-foreground">Permit ID</p><p className="text-sm font-mono text-xs">{selectedConnection.permitId}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Type</p><p className="text-sm">{selectedConnection.permitType || "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Date</p><p className="text-sm">{selectedConnection.permitDate || "—"}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Job Value</p><p className="text-sm">{selectedConnection.permitJobValue ? `$${selectedConnection.permitJobValue.toLocaleString()}` : "—"}</p></div>
+                        {selectedConnection.permitDescription && (
+                          <div className="col-span-2"><p className="text-xs text-muted-foreground">Description</p><p className="text-sm">{selectedConnection.permitDescription}</p></div>
+                        )}
+                        <div><p className="text-xs text-muted-foreground">Source</p><p className="text-sm">{selectedConnection.source}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Connected On</p><p className="text-sm">{new Date(selectedConnection.createdAt).toLocaleDateString()}</p></div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
+
+      {viewMode === "contractors" && (<div className="space-y-0">
+
       {/* Header Actions */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 flex-1">
+      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 glass-card p-4">
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto flex-1">
           {/* Search */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative w-full sm:w-64 md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
@@ -545,157 +1134,186 @@ export const Leads = () => {
                 setSelectedIds(new Set());
                 setIsAllPagesSelected(false);
               }}
-              className="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/70"
             />
           </div>
 
+          <div className="h-6 w-px bg-border hidden sm:block mx-1"></div>
+
           {/* Filters */}
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); setSelectedIds(new Set()); setIsAllPagesSelected(false); }}>
-            <SelectTrigger className="w-40 bg-card">
-              <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
+            <SelectTrigger className="w-36 h-9 bg-background border-border shadow-sm text-xs font-medium">
+              <Filter className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="NEW">New</SelectItem>
-              <SelectItem value="VALIDATED">Validated</SelectItem>
-              <SelectItem value="IN_SEQUENCE">In Sequence</SelectItem>
-              <SelectItem value="REPLIED">Replied</SelectItem>
-              <SelectItem value="BOUNCED">Bounced</SelectItem>
+            <SelectContent className="shadow-xl border-border/50">
+              <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
+              <SelectItem value="NEW" className="text-xs">New</SelectItem>
+              <SelectItem value="VALIDATED" className="text-xs">Validated</SelectItem>
+              <SelectItem value="IN_SEQUENCE" className="text-xs">In Sequence</SelectItem>
+              <SelectItem value="REPLIED" className="text-xs">Replied</SelectItem>
+              <SelectItem value="BOUNCED" className="text-xs">Bounced</SelectItem>
             </SelectContent>
           </Select>
 
           <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setCurrentPage(1); setSelectedIds(new Set()); setIsAllPagesSelected(false); }}>
-            <SelectTrigger className="w-36 bg-card">
+            <SelectTrigger className="w-36 h-9 bg-background border-border shadow-sm text-xs font-medium">
               <SelectValue placeholder="Source" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sources</SelectItem>
-              <SelectItem value="apollo">Apollo</SelectItem>
-              <SelectItem value="csv">CSV Import</SelectItem>
-              <SelectItem value="manual">Manual</SelectItem>
-              <SelectItem value="google_maps">Google Maps</SelectItem>
-              <SelectItem value="hunter">Hunter.io</SelectItem>
+            <SelectContent className="shadow-xl border-border/50">
+              <SelectItem value="all" className="text-xs">All Sources</SelectItem>
+              <SelectItem value="apollo" className="text-xs">Apollo</SelectItem>
+              <SelectItem value="csv" className="text-xs">CSV Import</SelectItem>
+              <SelectItem value="manual" className="text-xs">Manual</SelectItem>
+              <SelectItem value="google_maps" className="text-xs">Google Maps</SelectItem>
+              <SelectItem value="hunter" className="text-xs">Hunter.io</SelectItem>
+              <SelectItem value="shovels" className="text-xs">Shovels</SelectItem>
             </SelectContent>
           </Select>
 
           <Select value={validationFilter} onValueChange={(v) => { setValidationFilter(v); setCurrentPage(1); setSelectedIds(new Set()); setIsAllPagesSelected(false); }}>
-            <SelectTrigger className="w-44 bg-card">
-              <Check className="w-4 h-4 mr-2 text-muted-foreground" />
+            <SelectTrigger className="w-40 h-9 bg-background border-border shadow-sm text-xs font-medium">
+              <Check className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Validation" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Validation</SelectItem>
-              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Email</div>
-              <SelectItem value="email-VALID">Email: Valid</SelectItem>
-              <SelectItem value="email-INVALID">Email: Invalid</SelectItem>
-              <SelectItem value="email-PENDING">Email: Pending</SelectItem>
-              <SelectItem value="email-CATCH_ALL">Email: Catch All</SelectItem>
-              <SelectItem value="email-UNKNOWN">Email: Unknown</SelectItem>
-              <SelectItem value="email-DISPOSABLE">Email: Disposable</SelectItem>
-              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-1">Phone</div>
-              <SelectItem value="phone-VALID_MOBILE">Phone: Valid Mobile</SelectItem>
-              <SelectItem value="phone-VALID_LANDLINE">Phone: Valid Landline</SelectItem>
-              <SelectItem value="phone-INVALID">Phone: Invalid</SelectItem>
-              <SelectItem value="phone-PENDING">Phone: Pending</SelectItem>
-              <SelectItem value="phone-UNKNOWN">Phone: Unknown</SelectItem>
+            <SelectContent className="shadow-xl border-border/50">
+              <SelectItem value="all" className="text-xs">All Validation</SelectItem>
+              <div className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70 bg-muted/30">Email</div>
+              <SelectItem value="email-VALID" className="text-xs">Valid</SelectItem>
+              <SelectItem value="email-INVALID" className="text-xs">Invalid</SelectItem>
+              <SelectItem value="email-PENDING" className="text-xs">Pending</SelectItem>
+              <SelectItem value="email-CATCH_ALL" className="text-xs">Catch All</SelectItem>
+              <SelectItem value="email-UNKNOWN" className="text-xs">Unknown</SelectItem>
+              <SelectItem value="email-DISPOSABLE" className="text-xs">Disposable</SelectItem>
+              <div className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70 bg-muted/30 mt-1">Phone</div>
+              <SelectItem value="phone-VALID_MOBILE" className="text-xs">Valid Mobile</SelectItem>
+              <SelectItem value="phone-VALID_LANDLINE" className="text-xs">Valid Landline</SelectItem>
+              <SelectItem value="phone-INVALID" className="text-xs">Invalid</SelectItem>
+              <SelectItem value="phone-PENDING" className="text-xs">Pending</SelectItem>
+              <SelectItem value="phone-UNKNOWN" className="text-xs">Unknown</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full xl:w-auto pt-4 xl:pt-0 border-t xl:border-t-0 border-border">
           {/* Column Visibility Toggle */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Columns className="w-4 h-4 mr-2" />
+              <Button variant="outline" size="sm" className="h-9 bg-background border-border shadow-sm text-xs font-medium">
+                <Columns className="w-3.5 h-3.5 mr-2" />
                 Columns
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-56 shadow-xl border-border/50">
+              <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Visible Columns</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={columnVisibility.lastReply}
-                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, lastReply: checked }))}
-              >
-                Last Reply
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={columnVisibility.campaign}
-                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, campaign: checked }))}
-              >
-                Campaign
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={columnVisibility.dataQuality}
-                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, dataQuality: checked }))}
-              >
-                Data Quality
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={columnVisibility.googleRating}
-                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, googleRating: checked }))}
-              >
-                Google Rating
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={columnVisibility.lastContacted}
-                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, lastContacted: checked }))}
-              >
-                Last Contacted
-              </DropdownMenuCheckboxItem>
+              <div className="grid grid-cols-2 gap-x-2">
+                <div className="space-y-1">
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.validation}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, validation: checked }))}
+                    className="text-xs"
+                  >
+                    Validation
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.lastReply}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, lastReply: checked }))}
+                    className="text-xs"
+                  >
+                    Last Reply
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.campaign}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, campaign: checked }))}
+                    className="text-xs"
+                  >
+                    Campaign
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.dataQuality}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, dataQuality: checked }))}
+                    className="text-xs"
+                  >
+                    Data Quality
+                  </DropdownMenuCheckboxItem>
+                </div>
+                <div className="space-y-1">
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.googleRating}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, googleRating: checked }))}
+                    className="text-xs"
+                  >
+                    Google Rating
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.lastContacted}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, lastContacted: checked }))}
+                    className="text-xs"
+                  >
+                    Contacted
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.source}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, source: checked }))}
+                    className="text-xs"
+                  >
+                    Source
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.added}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, added: checked }))}
+                    className="text-xs"
+                  >
+                    Added
+                  </DropdownMenuCheckboxItem>
+                </div>
+              </div>
               <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={columnVisibility.validation}
-                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, validation: checked }))}
-              >
-                Validation
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={columnVisibility.source}
-                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, source: checked }))}
-              >
-                Source
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={columnVisibility.added}
-                onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, added: checked }))}
-              >
-                Added Date
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Upload className="w-4 h-4 mr-2" />
-                Import
-                <ChevronDown className="w-4 h-4 ml-2" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setIsApolloImportOpen(true)}>
-                Import from Apollo
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                Import from CSV
-              </DropdownMenuItem>
+              <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wider">Permit / Shovels</DropdownMenuLabel>
+              <div className="grid grid-cols-2 gap-x-2">
+                <div className="space-y-1">
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.permitType}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, permitType: checked }))}
+                    className="text-xs"
+                  >
+                    Permit Type
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.permitDate}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, permitDate: checked }))}
+                    className="text-xs"
+                  >
+                    Permit Date
+                  </DropdownMenuCheckboxItem>
+                </div>
+                <div className="space-y-1">
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.permitCity}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, permitCity: checked }))}
+                    className="text-xs"
+                  >
+                    Permit City
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.tags}
+                    onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, tags: checked }))}
+                    className="text-xs"
+                  >
+                    Tags
+                  </DropdownMenuCheckboxItem>
+                </div>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <Dialog open={isAddLeadOpen} onOpenChange={setIsAddLeadOpen}>
             <DialogTrigger asChild>
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Lead
+          <Button size="sm" className="h-9 shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Plus className="w-4 h-4 mr-1.5" />
+            <span className="font-semibold">Add Lead</span>
           </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
@@ -1097,6 +1715,65 @@ export const Leads = () => {
                       )}
                     </div>
                   )}
+                  {(selectedContact.permitType || selectedContact.permitCity || selectedContact.licenseNumber || (selectedContact.enrichmentData && ('permitDate' in selectedContact.enrichmentData || 'permitCount' in selectedContact.enrichmentData || 'avgJobValue' in selectedContact.enrichmentData))) && (
+                    <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-lg">
+                      <p className="text-sm font-medium text-orange-600 mb-3">Permit Info</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {selectedContact.permitType && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Permit Type</p>
+                            <p className="text-sm font-medium capitalize">{selectedContact.permitType}</p>
+                          </div>
+                        )}
+                        {selectedContact.permitCity && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Permit City</p>
+                            <p className="text-sm font-medium">{selectedContact.permitCity}</p>
+                          </div>
+                        )}
+                        {selectedContact.enrichmentData && ('permitDate' in selectedContact.enrichmentData || 'first_seen_date' in selectedContact.enrichmentData) && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Permit Date</p>
+                            <p className="text-sm font-medium">
+                              {new Date(String((selectedContact.enrichmentData as Record<string, unknown>).permitDate || (selectedContact.enrichmentData as Record<string, unknown>).first_seen_date)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                          </div>
+                        )}
+                        {selectedContact.enrichmentData && 'permitCount' in selectedContact.enrichmentData && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Permit Count</p>
+                            <p className="text-sm font-medium">{String((selectedContact.enrichmentData as Record<string, unknown>).permitCount)}</p>
+                          </div>
+                        )}
+                        {selectedContact.enrichmentData && 'avgJobValue' in selectedContact.enrichmentData && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Avg Job Value</p>
+                            <p className="text-sm font-medium">
+                              {'$'}{Number((selectedContact.enrichmentData as Record<string, unknown>).avgJobValue).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+                        {selectedContact.licenseNumber && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">License #</p>
+                            <p className="text-sm font-medium">{selectedContact.licenseNumber}</p>
+                          </div>
+                        )}
+                      </div>
+                      {selectedContact.tags && selectedContact.tags.filter(t => t.startsWith('permit:')).length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-xs text-muted-foreground mb-1.5">Permit Tags</p>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedContact.tags.filter(t => t.startsWith('permit:')).map((tag) => (
+                              <span key={tag} className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/15 text-orange-600">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {selectedContact.linkedinUrl && (
                     <a 
                       href={selectedContact.linkedinUrl} 
@@ -1297,22 +1974,28 @@ export const Leads = () => {
       )}
 
       {/* Table */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="glass-card p-0 overflow-hidden border-border/50 shadow-sm mt-6">
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-24">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
         ) : filteredContacts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Users className="w-12 h-12 mb-4 opacity-50" />
-            <p className="text-lg font-medium">No contacts found</p>
-            <p className="text-sm">Import contacts or add them manually to get started</p>
+          <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
+            <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+              <Users className="w-8 h-8 opacity-50" />
+            </div>
+            <p className="text-lg font-bold text-foreground">No contacts found</p>
+            <p className="text-sm mt-1 max-w-sm text-center">Import contacts from Apollo or upload a CSV to start building your database.</p>
+            <Button className="mt-6" onClick={() => setIsApolloImportOpen(true)}>
+              <Download className="w-4 h-4 mr-2" />
+              Import Contacts
+            </Button>
           </div>
         ) : (
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full text-sm text-left">
             <thead>
-              <tr className="border-b border-border bg-muted/30">
+              <tr className="border-b border-border bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground font-bold">
                 <th className="p-4 w-12">
                   <Checkbox
                       checked={selectedIds.size === filteredContacts.length && filteredContacts.length > 0}
@@ -1390,6 +2073,26 @@ export const Leads = () => {
                       Added
                       <SortIcon field="createdAt" />
                     </button>
+                  </th>
+                )}
+                {columnVisibility.permitType && (
+                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                    Permit Type
+                  </th>
+                )}
+                {columnVisibility.permitDate && (
+                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                    Permit Date
+                  </th>
+                )}
+                {columnVisibility.permitCity && (
+                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                    Permit City
+                  </th>
+                )}
+                {columnVisibility.tags && (
+                  <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                    Tags
                   </th>
                 )}
                 <th className="p-4 w-12"></th>
@@ -1604,6 +2307,51 @@ export const Leads = () => {
                         {new Date(contact.createdAt).toLocaleDateString()}
                     </td>
                   )}
+                  {columnVisibility.permitType && (
+                    <td className="p-4">
+                      {contact.permitType ? (
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-orange-500/15 text-orange-600 capitalize">
+                          {contact.permitType}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  )}
+                  {columnVisibility.permitDate && (
+                    <td className="p-4 text-sm text-muted-foreground">
+                      {contact.enrichmentData && typeof contact.enrichmentData === 'object' && ('permitDate' in contact.enrichmentData || 'first_seen_date' in contact.enrichmentData) ? (
+                        new Date(String((contact.enrichmentData as Record<string, unknown>).permitDate || (contact.enrichmentData as Record<string, unknown>).first_seen_date)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      ) : (
+                        <span>—</span>
+                      )}
+                    </td>
+                  )}
+                  {columnVisibility.permitCity && (
+                    <td className="p-4 text-sm text-muted-foreground">
+                      {contact.permitCity || <span>—</span>}
+                    </td>
+                  )}
+                  {columnVisibility.tags && (
+                    <td className="p-4">
+                      {contact.tags && contact.tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 max-w-[180px]">
+                          {contact.tags.slice(0, 3).map((tag) => (
+                            <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground truncate max-w-[80px]" title={tag}>
+                              {tag}
+                            </span>
+                          ))}
+                          {contact.tags.length > 3 && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">
+                              +{contact.tags.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="p-4">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -1645,81 +2393,87 @@ export const Leads = () => {
         </div>
         )}
 
-        {/* Pagination & Row Controls */}
-        {pagination && (
-        <div className="flex items-center justify-between p-4 border-t border-border">
-          <p className="text-sm text-muted-foreground">
-            {showAll
-              ? `Showing all ${pagination.total} leads`
-              : `Showing ${(pagination.page - 1) * pagination.limit + 1} to ${Math.min(pagination.page * pagination.limit, pagination.total)} of ${pagination.total} leads`}
-          </p>
-          <div className="flex items-center gap-3">
-            {/* Rows per page selector */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Rows:</span>
-              <select
-                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                value={showAll ? "all" : itemsPerPage}
-                onChange={(e) => {
-                  if (e.target.value === "all") {
-                    setShowAll(true);
-                    setCurrentPage(1);
-                  } else {
-                    setShowAll(false);
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }
-                }}
-              >
-                <option value={10}>10</option>
-                <option value={30}>30</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-                <option value="all">Show All</option>
-              </select>
-            </div>
-            {/* Page navigation (hidden when showing all) */}
-            {!showAll && pagination.totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
-                  const startPage = Math.max(1, Math.min(currentPage - 2, pagination.totalPages - 4));
-                  return startPage + i;
-                }).filter(p => p >= 1 && p <= pagination.totalPages).map((page) => (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setCurrentPage(page)}
-                    className="w-8"
-                  >
-                    {page}
-                  </Button>
-                ))}
-                {pagination.totalPages > 5 && currentPage < pagination.totalPages - 2 && (
-                  <span className="text-muted-foreground">...</span>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
-                  disabled={currentPage === pagination.totalPages}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
+              {/* Pagination & Row Controls */}
+              {pagination && (
+              <div className="flex items-center justify-between p-4 border-t border-border/50 bg-muted/5">
+                <p className="text-xs text-muted-foreground font-medium">
+                  {showAll
+                    ? `Showing all ${pagination.total} leads`
+                    : `Showing ${(pagination.page - 1) * pagination.limit + 1} to ${Math.min(pagination.page * pagination.limit, pagination.total)} of ${pagination.total} leads`}
+                </p>
+                <div className="flex items-center gap-3">
+                  {/* Rows per page selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground font-medium">Rows:</span>
+                    <select
+                      className="h-8 rounded-md border border-border/50 bg-background px-2 text-xs font-medium shadow-sm outline-none focus:ring-1 focus:ring-primary/50"
+                      value={showAll ? "all" : itemsPerPage}
+                      onChange={(e) => {
+                        if (e.target.value === "all") {
+                          setShowAll(true);
+                          setCurrentPage(1);
+                        } else {
+                          setShowAll(false);
+                          setItemsPerPage(Number(e.target.value));
+                          setCurrentPage(1);
+                        }
+                      }}
+                    >
+                      <option value={10}>10</option>
+                      <option value={30}>30</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value="all">Show All</option>
+                    </select>
+                  </div>
+                  {/* Page navigation (hidden when showing all) */}
+                  {!showAll && pagination.totalPages > 1 && (
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
+                        const startPage = Math.max(1, Math.min(currentPage - 2, pagination.totalPages - 4));
+                        return startPage + i;
+                      }).filter(p => p >= 1 && p <= pagination.totalPages).map((page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className={cn("h-8 w-8 p-0 text-xs", currentPage === page ? "bg-primary font-bold shadow-sm" : "")}
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                      {pagination.totalPages > 5 && currentPage < pagination.totalPages - 2 && (
+                        <span className="text-muted-foreground text-xs px-1">...</span>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
+                        disabled={currentPage === pagination.totalPages}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-        )}
+              )}
+      </div>
+      </div>)}
       </div>
     </div>
   );
 };
+
+export default Leads;

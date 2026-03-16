@@ -31,6 +31,7 @@ import type {
   MessageTemplate,
   TemplateChannel,
   ShovelsScraperSettings,
+  HomeownerScraperSettings,
   PermitRoutingSettings,
   PipelineControlSettings,
   ContactReply,
@@ -46,6 +47,10 @@ import type {
   RoutingFilterOptions,
   RoutingTestResult,
   ExampleContact,
+  Homeowner,
+  HomeownerStats,
+  Connection,
+  ConnectionStats,
 } from '@/types/api';
 
 // ==================== QUERY KEYS ====================
@@ -84,6 +89,21 @@ export const queryKeys = {
   
   shovels: {
     settings: ['shovels', 'settings'] as const,
+  },
+
+  homeowners: {
+    all: ['homeowners'] as const,
+    list: (filters?: any) => ['homeowners', 'list', filters] as const,
+    detail: (id: string) => ['homeowners', 'detail', id] as const,
+    stats: ['homeowners', 'stats'] as const,
+    settings: ['homeowners', 'settings'] as const,
+  },
+
+  connections: {
+    all: ['connections'] as const,
+    list: (filters?: any) => ['connections', 'list', filters] as const,
+    detail: (id: string) => ['connections', 'detail', id] as const,
+    stats: ['connections', 'stats'] as const,
   },
   
   activity: {
@@ -808,7 +828,7 @@ export function useTriggerScheduledJob() {
   const { toast } = useToast();
   
   return useMutation({
-    mutationFn: (jobName: 'shovels' | 'enrich' | 'merge' | 'validate' | 'enroll') =>
+    mutationFn: (jobName: 'shovels' | 'homeowner' | 'enrich' | 'merge' | 'validate' | 'enroll') =>
       api.settings.triggerJob(jobName),
     onSuccess: (_, jobName) => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
@@ -1321,6 +1341,120 @@ export function useTestRouting() {
         description: error.message,
         variant: 'destructive',
       });
+    },
+  });
+}
+
+// ==================== HOMEOWNERS ====================
+
+export function useHomeowners(filters?: { search?: string; status?: string; city?: string; state?: string; page?: number; limit?: number; sort?: string; order?: string }) {
+  return useQuery({
+    queryKey: queryKeys.homeowners.list(filters),
+    queryFn: () => api.homeowners.list(filters),
+    staleTime: 30000,
+  });
+}
+
+export function useHomeowner(id: string) {
+  return useQuery({
+    queryKey: queryKeys.homeowners.detail(id),
+    queryFn: () => api.homeowners.get(id),
+    enabled: !!id,
+  });
+}
+
+export function useHomeownerStats() {
+  return useQuery({
+    queryKey: queryKeys.homeowners.stats,
+    queryFn: () => api.homeowners.stats(),
+    staleTime: 60000,
+  });
+}
+
+export function useDeleteHomeowner() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (id: string) => api.homeowners.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.homeowners.all });
+      toast({ title: 'Homeowner deleted' });
+    },
+    onError: (error: ApiError) => {
+      toast({ title: 'Failed to delete homeowner', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useTriggerRealieEnrich() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (batchSize?: number) => api.homeowners.triggerEnrich(batchSize),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.homeowners.all });
+      toast({ title: 'Realie enrichment complete', description: `Enriched: ${response.data.enriched}, Not found: ${response.data.notFound}` });
+    },
+    onError: (error: ApiError) => {
+      toast({ title: 'Realie enrichment failed', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useHomeownerSettings() {
+  return useQuery({
+    queryKey: queryKeys.homeowners.settings,
+    queryFn: () => api.settings.getHomeownerSettings(),
+    staleTime: 60000,
+  });
+}
+
+export function useUpdateHomeownerSettings() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (data: Partial<HomeownerScraperSettings>) =>
+      api.settings.updateHomeownerSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.homeowners.settings });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings });
+      toast({ title: 'Homeowner settings saved' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to save homeowner settings', variant: 'destructive' });
+    },
+  });
+}
+
+// ==================== CONNECTIONS ====================
+
+export function useConnections(filters?: { search?: string; permitType?: string; city?: string; state?: string; page?: number; limit?: number; sort?: string; order?: string }) {
+  return useQuery({
+    queryKey: queryKeys.connections.list(filters),
+    queryFn: () => api.connections.list(filters),
+    staleTime: 30000,
+  });
+}
+
+export function useConnectionStats() {
+  return useQuery({
+    queryKey: queryKeys.connections.stats,
+    queryFn: () => api.connections.stats(),
+    staleTime: 60000,
+  });
+}
+
+export function useResolveConnections() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (batchSize?: number) => api.connections.resolve(batchSize),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.connections.all });
+      toast({ title: 'Connection resolution complete', description: `Connected: ${response.data.connected}, No contractor: ${response.data.noContractor}` });
+    },
+    onError: (error: ApiError) => {
+      toast({ title: 'Connection resolution failed', description: error.message, variant: 'destructive' });
     },
   });
 }

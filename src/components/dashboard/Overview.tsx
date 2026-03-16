@@ -158,9 +158,27 @@ export const Overview = () => {
   }
 
   return (
-    <div className="flex-1 overflow-auto p-6 space-y-6 animate-fade-in">
+    <div className="flex-1 overflow-auto p-6 md:p-8 space-y-8 animate-fade-in relative z-10 w-full h-full max-w-7xl mx-auto">
+      {/* Header section for Overview */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard Overview</h1>
+          <p className="text-sm text-muted-foreground mt-1">Track your automation performance and outreach metrics.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm border-border/50 bg-background/50 backdrop-blur-sm">
+            <Calendar className="w-4 h-4" />
+            <span>Last 30 Days</span>
+          </Button>
+          <Button size="sm" className="h-9 gap-2 shadow-sm">
+            <RefreshCw className="w-4 h-4" />
+            <span>Refresh Data</span>
+          </Button>
+        </div>
+      </div>
+
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <StatsCard
           title="Total Leads"
           value={totalLeads.toLocaleString()}
@@ -196,118 +214,123 @@ export const Overview = () => {
       </div>
 
       {/* Trends Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         {/* Outreach Trends Chart */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6 relative overflow-hidden">
-          <div className="flex items-center justify-between mb-4 relative z-10">
+        <div className="glass-card lg:col-span-2 overflow-hidden flex flex-col group">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 relative z-10">
             <div>
-              <h3 className="font-bold text-foreground text-xl">Outreach Trends</h3>
-              <p className="text-sm text-muted-foreground mt-1">Messages sent by channel</p>
-              <p className="text-xs text-muted-foreground/70 italic mt-1">* Sample data - time-series tracking coming soon</p>
+              <h3 className="font-semibold text-foreground text-lg tracking-tight">Outreach Trends</h3>
+              <p className="text-sm text-muted-foreground mt-1">Messages sent across all channels</p>
             </div>
-            <Tabs defaultValue="weekly" className="w-auto">
-              <TabsList className="h-8">
-                <TabsTrigger value="weekly" className="text-xs px-3 h-7">Weekly</TabsTrigger>
-                <TabsTrigger value="monthly" className="text-xs px-3 h-7">Monthly</TabsTrigger>
+            <Tabs defaultValue="weekly" className="w-full sm:w-auto">
+              <TabsList className="h-9 w-full sm:w-auto bg-muted/50 p-1">
+                <TabsTrigger value="weekly" className="text-xs px-4 h-7 rounded-md">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly" className="text-xs px-4 h-7 rounded-md">Monthly</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
           
           {/* Legend */}
-          <div className="flex items-center gap-4 text-sm mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-primary" />
-                <span className="text-muted-foreground">Email</span>
+          <div className="flex flex-wrap items-center gap-4 text-xs font-medium mb-6 px-1">
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                <div className="w-2 h-2 rounded-full bg-primary" />
+                <span>Email</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-1 bg-accent rounded-full" />
-                <span className="text-muted-foreground">SMS</span>
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-accent/10 text-accent border border-accent/20">
+                <div className="w-2 h-2 bg-accent rounded-full" />
+                <span>SMS</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-1 rounded-full" style={{ backgroundColor: 'hsl(250, 80%, 60%)' }} />
-                <span className="text-muted-foreground">LinkedIn</span>
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-info/10 text-info border border-info/20">
+                <div className="w-2 h-2 rounded-full bg-info" />
+                <span>LinkedIn</span>
               </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-1 rounded-full" style={{ backgroundColor: 'hsl(45, 95%, 60%)' }} />
-              <span className="text-muted-foreground">Replies</span>
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+              <div className="w-2 h-2 rounded-full bg-yellow-500" />
+              <span>Replies</span>
             </div>
           </div>
 
-          <div className="h-72">
+          <div className="h-[300px] w-full mt-auto">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={weeklyTrendData}>
                 <defs>
                   <linearGradient id="emailGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(270, 80%, 60%)" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="hsl(270, 80%, 60%)" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.0}/>
                   </linearGradient>
                   <linearGradient id="smsGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(280, 75%, 65%)" stopOpacity={0.6}/>
-                    <stop offset="95%" stopColor="hsl(280, 75%, 65%)" stopOpacity={0.05}/>
+                    <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0.0}/>
                   </linearGradient>
                   <linearGradient id="linkedinGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(250, 80%, 60%)" stopOpacity={0.6}/>
-                    <stop offset="95%" stopColor="hsl(250, 80%, 60%)" stopOpacity={0.05}/>
+                    <stop offset="5%" stopColor="hsl(var(--info))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--info))" stopOpacity={0.0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.2} />
+                <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border))" strokeOpacity={0.4} vertical={false} />
                 <XAxis 
                   dataKey="day" 
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
-                  stroke="hsl(var(--border))" 
-                  strokeOpacity={0.5}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }} 
+                  stroke="transparent" 
+                  tickMargin={12}
                 />
                 <YAxis 
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
-                  stroke="hsl(var(--border))" 
-                  strokeOpacity={0.5}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }} 
+                  stroke="transparent" 
+                  tickMargin={12}
+                  axisLine={false}
                 />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'hsl(0 0% 8%)', 
-                    border: '1px solid hsl(270 80% 60% / 0.3)',
+                    backgroundColor: 'hsl(var(--background))', 
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '12px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+                    boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)',
+                    padding: '12px',
+                    fontSize: '12px'
                   }}
-                  labelStyle={{ color: 'hsl(var(--foreground))' }}
+                  itemStyle={{ fontWeight: 600 }}
+                  labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '8px', fontWeight: 500 }}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="emails" 
-                  stroke="hsl(270, 80%, 60%)" 
+                  stroke="hsl(var(--primary))" 
                   strokeWidth={3}
                   fill="url(#emailGradient)" 
                   name="Emails"
-                  dot={{ fill: 'hsl(270, 80%, 60%)', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, fill: 'hsl(270, 80%, 60%)', strokeWidth: 0 }}
+                  dot={false}
+                  activeDot={{ r: 6, fill: 'hsl(var(--primary))', strokeWidth: 3, stroke: 'hsl(var(--background))' }}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="sms" 
-                  stroke="hsl(280, 75%, 65%)" 
+                  stroke="hsl(var(--accent))" 
                   strokeWidth={2}
-                  strokeDasharray="5 5"
                   fill="url(#smsGradient)" 
                   name="SMS"
+                  dot={false}
+                  activeDot={{ r: 5, fill: 'hsl(var(--accent))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="linkedin" 
-                  stroke="hsl(250, 80%, 60%)" 
+                  stroke="hsl(var(--info))" 
                   strokeWidth={2}
-                  strokeDasharray="5 5"
                   fill="url(#linkedinGradient)" 
                   name="LinkedIn"
+                  dot={false}
+                  activeDot={{ r: 5, fill: 'hsl(var(--info))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="replies" 
-                  stroke="hsl(45, 95%, 60%)" 
-                  strokeWidth={2}
-                  strokeDasharray="8 4"
+                  stroke="hsl(45, 95%, 55%)" 
+                  strokeWidth={3}
                   fill="none" 
                   name="Replies"
-                  dot={{ fill: 'hsl(45, 95%, 60%)', strokeWidth: 2, r: 3 }}
+                  dot={false}
+                  activeDot={{ r: 5, fill: 'hsl(45, 95%, 55%)', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -315,12 +338,12 @@ export const Overview = () => {
         </div>
 
         {/* Channel Distribution Pie */}
-        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden">
-          <div className="mb-4 relative z-10">
-            <h3 className="font-bold text-foreground text-xl">Channel Distribution</h3>
-            <p className="text-sm text-muted-foreground mt-1">Total messages by channel</p>
+        <div className="glass-card overflow-hidden flex flex-col group">
+          <div className="mb-6 relative z-10">
+            <h3 className="font-semibold text-foreground text-lg tracking-tight">Channel Distribution</h3>
+            <p className="text-sm text-muted-foreground mt-1">Volume by platform</p>
           </div>
-          <div className="h-48 relative z-10">
+          <div className="h-[200px] relative z-10 w-full flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <defs>
@@ -336,40 +359,44 @@ export const Overview = () => {
                   data={channelDistribution}
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={5}
+                  innerRadius={65}
+                  outerRadius={85}
+                  paddingAngle={8}
                   dataKey="value"
+                  stroke="transparent"
+                  cornerRadius={10}
                 >
                   {channelDistribution.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
                       fill={entry.color}
-                      stroke={entry.color}
-                      strokeWidth={2}
+                      className="hover:opacity-80 transition-opacity duration-300"
                     />
                   ))}
                 </Pie>
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'hsl(0 0% 8%)', 
-                    border: '1px solid hsl(270 80% 60% / 0.3)',
+                    backgroundColor: 'hsl(var(--background))', 
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '12px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+                    boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)',
+                    padding: '10px 14px',
+                    fontSize: '12px'
                   }}
-                  labelStyle={{ color: 'hsl(var(--foreground))' }}
+                  itemStyle={{ fontWeight: 600 }}
+                  cursor={{ fill: 'transparent' }}
                 />
               </PieChart>
             </ResponsiveContainer>
                   </div>
-          <div className="space-y-2 mt-2 relative z-10">
+          <div className="space-y-3 mt-4 relative z-10">
             {channelDistribution.map((channel) => (
-              <div key={channel.name} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: channel.color, boxShadow: `0 0 10px ${channel.color}` }} />
+              <div key={channel.name} className="flex items-center justify-between text-sm px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: channel.color, boxShadow: `0 0 8px ${channel.color}` }} />
                   <span className="text-muted-foreground font-medium">{channel.name}</span>
                 </div>
-                <span className="font-semibold text-foreground">{channel.value.toLocaleString()}</span>
+                <span className="font-semibold text-foreground tracking-tight">{channel.value.toLocaleString()}</span>
               </div>
             ))}
           </div>
@@ -377,19 +404,22 @@ export const Overview = () => {
       </div>
 
       {/* Channel Performance Comparison */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         {/* Email Performance */}
-        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden group hover:border-primary/40 transition-all">
-          <div className="flex items-center gap-3 mb-4 relative z-10">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Mail className="w-5 h-5 text-primary" />
+        <div className="glass-card group hover:border-primary/30">
+          <div className="flex items-center gap-4 mb-6 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm shadow-primary/5 transition-transform group-hover:scale-105">
+              <Mail className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h3 className="font-bold text-foreground">Email</h3>
-              <p className="text-xs text-muted-foreground">via Instantly.ai</p>
+              <h3 className="font-semibold text-foreground text-lg tracking-tight">Email</h3>
+              <p className="text-xs text-muted-foreground font-medium flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
+                via Instantly.ai
+              </p>
             </div>
           </div>
-          <div className="space-y-3 relative z-10">
+          <div className="space-y-4 relative z-10">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground font-medium">Sent</span>
               <span className="font-bold">{channelMetrics.email.sent.toLocaleString()}</span>
@@ -428,17 +458,20 @@ export const Overview = () => {
         </div>
 
         {/* SMS Performance */}
-        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden group hover:border-accent/40 transition-all">
-          <div className="flex items-center gap-3 mb-4 relative z-10">
-            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-              <Smartphone className="w-5 h-5 text-accent" />
+        <div className="glass-card group hover:border-accent/30">
+          <div className="flex items-center gap-4 mb-6 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20 shadow-sm shadow-accent/5 transition-transform group-hover:scale-105">
+              <Smartphone className="w-6 h-6 text-accent" />
             </div>
             <div>
-              <h3 className="font-bold text-foreground">SMS</h3>
-              <p className="text-xs text-muted-foreground">via GoHighLevel</p>
+              <h3 className="font-semibold text-foreground text-lg tracking-tight">SMS</h3>
+              <p className="text-xs text-muted-foreground font-medium flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
+                via GoHighLevel
+              </p>
             </div>
           </div>
-          <div className="space-y-3 relative z-10">
+          <div className="space-y-4 relative z-10">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground font-medium">Sent</span>
               <span className="font-bold">{channelMetrics.sms.sent.toLocaleString()}</span>
@@ -473,17 +506,20 @@ export const Overview = () => {
         </div>
 
         {/* LinkedIn Performance */}
-        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden group hover:border-info/40 transition-all">
-          <div className="flex items-center gap-3 mb-4 relative z-10">
-            <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
-              <Linkedin className="w-5 h-5 text-info" />
+        <div className="glass-card group hover:border-info/30">
+          <div className="flex items-center gap-4 mb-6 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-info/10 flex items-center justify-center border border-info/20 shadow-sm shadow-info/5 transition-transform group-hover:scale-105">
+              <Linkedin className="w-6 h-6 text-info" />
             </div>
             <div>
-              <h3 className="font-bold text-foreground">LinkedIn</h3>
-              <p className="text-xs text-muted-foreground">via PhantomBuster</p>
+              <h3 className="font-semibold text-foreground text-lg tracking-tight">LinkedIn</h3>
+              <p className="text-xs text-muted-foreground font-medium flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
+                via PhantomBuster
+              </p>
             </div>
           </div>
-          <div className="space-y-3 relative z-10">
+          <div className="space-y-4 relative z-10">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground font-medium">Requests Sent</span>
               <span className="font-bold">{channelMetrics.linkedin.sent.toLocaleString()}</span>
@@ -519,61 +555,64 @@ export const Overview = () => {
       </div>
 
       {/* Bottom Row: Reply Rate Trend + System Health */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 pb-8">
         {/* Reply Rate Trend */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6 relative overflow-hidden">
-          <div className="flex items-center justify-between mb-4 relative z-10">
+        <div className="glass-card lg:col-span-2 overflow-hidden flex flex-col">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 relative z-10">
             <div>
-              <h3 className="font-bold text-foreground text-xl">Reply Rate Trend</h3>
+              <h3 className="font-semibold text-foreground text-lg tracking-tight">Reply Rate Trend</h3>
               <p className="text-sm text-muted-foreground mt-1">Weekly reply rate percentage</p>
-              <p className="text-xs text-muted-foreground/70 italic mt-1">* Sample data - time-series tracking coming soon</p>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-success/15 border border-success/30 text-success text-sm font-medium">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-success/10 border border-success/20 text-success text-sm font-medium shadow-sm">
               <TrendingUp className="w-4 h-4" />
               <span>+4.2% overall</span>
             </div>
           </div>
-          <div className="h-56 relative z-10">
+          <div className="h-[250px] relative z-10 w-full mt-auto">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={replyRateTrend}>
                 <defs>
                   <linearGradient id="replyGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(152, 65%, 55%)" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="hsl(152, 65%, 55%)" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0.0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.2} />
+                <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border))" strokeOpacity={0.4} vertical={false} />
                 <XAxis 
                   dataKey="week" 
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
-                  stroke="hsl(var(--border))" 
-                  strokeOpacity={0.5}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }} 
+                  stroke="transparent" 
+                  tickMargin={12}
                 />
                 <YAxis 
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
-                  stroke="hsl(var(--border))" 
-                  strokeOpacity={0.5}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }} 
+                  stroke="transparent" 
+                  tickMargin={12}
                   tickFormatter={(value) => `${value}%`}
                   domain={[0, 15]}
+                  axisLine={false}
                 />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'hsl(0 0% 8%)', 
-                    border: '1px solid hsl(152 65% 55% / 0.3)',
+                    backgroundColor: 'hsl(var(--background))', 
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '12px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+                    boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)',
+                    padding: '12px',
+                    fontSize: '12px'
                   }}
-                  labelStyle={{ color: 'hsl(var(--foreground))' }}
+                  itemStyle={{ fontWeight: 600 }}
+                  labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '8px', fontWeight: 500 }}
                   formatter={(value: number) => [`${value}%`, 'Reply Rate']}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="rate" 
-                  stroke="hsl(152, 65%, 55%)" 
+                  stroke="hsl(var(--success))" 
                   strokeWidth={3}
                   fill="url(#replyGradient)"
-                  dot={{ fill: 'hsl(152, 65%, 55%)', strokeWidth: 2, r: 5, stroke: 'hsl(0 0% 4%)', strokeWidth: 2 }}
-                  activeDot={{ r: 7, fill: 'hsl(152, 65%, 55%)', stroke: 'hsl(0 0% 4%)', strokeWidth: 3 }}
+                  dot={false}
+                  activeDot={{ r: 6, fill: 'hsl(var(--success))', strokeWidth: 3, stroke: 'hsl(var(--background))' }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -581,14 +620,14 @@ export const Overview = () => {
         </div>
 
         {/* System Health */}
-        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden">
-          <div className="flex items-center justify-between mb-4 relative z-10">
-            <h3 className="font-bold text-foreground text-xl">System Health</h3>
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+        <div className="glass-card flex flex-col group">
+          <div className="flex items-center justify-between mb-6 relative z-10">
+            <h3 className="font-semibold text-foreground text-lg tracking-tight">System Health</h3>
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 transition-transform group-hover:rotate-12">
               <Zap className="w-5 h-5 text-primary" />
             </div>
           </div>
-          <div className="space-y-4 relative z-10">
+          <div className="space-y-5 relative z-10 flex-1">
             {[
               { label: "Email Open Rate", value: channelMetrics.email.openRate, color: "bg-primary" },
               { label: "SMS Delivery", value: channelMetrics.sms.deliveryRate, color: "bg-accent" },

@@ -19,27 +19,39 @@ export const StatsCard = ({
   iconColor = "bg-primary/10 text-primary"
 }: StatsCardProps) => {
   return (
-    <div className="bg-card border border-border rounded-xl p-5 transition-shadow duration-200 hover:shadow-sm">
-      <div className="flex items-start justify-between">
+    <div className="glass-card flex flex-col relative overflow-hidden group hover:border-primary/20 hover:shadow-primary/5 transition-all duration-300">
+      {/* Decorative gradient blob */}
+      <div className={cn(
+        "absolute -right-8 -top-8 w-24 h-24 rounded-full blur-2xl opacity-20 transition-opacity group-hover:opacity-40",
+        iconColor.split(' ')[1] // Extract just the text color class for the background blob
+      )} />
+      
+      <div className="flex items-start justify-between relative z-10">
         <div className="flex-1">
-          <p className="text-sm text-muted-foreground font-medium">{title}</p>
-          <p className="text-2xl font-bold text-foreground mt-2">{value}</p>
+          <p className="text-sm text-muted-foreground font-medium flex items-center gap-1.5">
+            {title}
+          </p>
+          <div className="mt-3 flex items-baseline gap-2">
+            <p className="text-3xl font-bold text-foreground tracking-tight">{value}</p>
+          </div>
+          
           {change && (
-            <p className={cn(
-              "text-xs mt-2 font-medium",
-              changeType === "positive" && "text-success",
-              changeType === "negative" && "text-destructive",
-              changeType === "neutral" && "text-muted-foreground"
+            <div className={cn(
+              "mt-3 inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-md",
+              changeType === "positive" && "bg-success/10 text-success",
+              changeType === "negative" && "bg-destructive/10 text-destructive",
+              changeType === "neutral" && "bg-muted text-muted-foreground"
             )}>
-              {change}
-            </p>
+              {changeType === "positive" ? "↑" : changeType === "negative" ? "↓" : "•"} {change}
+            </div>
           )}
         </div>
+        
         <div className={cn(
-          "w-10 h-10 rounded-lg flex items-center justify-center",
+          "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-white/5",
           iconColor
         )}>
-          <Icon className="w-5 h-5" />
+          <Icon className="w-6 h-6" />
         </div>
       </div>
     </div>

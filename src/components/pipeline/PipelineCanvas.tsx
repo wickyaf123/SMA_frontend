@@ -103,41 +103,41 @@ const outreachChannels = [
   };
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col flex-1 overflow-hidden bg-background">
       {/* Header with Test Button */}
-      <div className="px-6 py-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between">
+      <div className="px-6 py-5 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold">End-to-End Automation Pipeline</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Test the complete workflow from lead import to campaign enrollment
+            <h2 className="text-xl font-bold tracking-tight text-foreground">Pipeline Automation</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Visualize and test the complete workflow from lead import to campaign enrollment.
             </p>
           </div>
           <TestPipelineButton />
         </div>
       </div>
 
-    <div className="flex flex-1 overflow-hidden">
+    <div className="flex flex-1 overflow-hidden relative">
       {/* Pipeline Canvas */}
-      <div className="flex-1 canvas-grid overflow-auto p-8">
+      <div className="flex-1 canvas-grid overflow-auto p-4 sm:p-8">
         <div className="min-h-full flex flex-col items-center py-8">
           {/* Stage Label */}
-          <div className="mb-4">
-            <span className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-full shadow-sm">
-              Pipeline Flow
+          <div className="mb-6">
+            <span className="px-4 py-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest rounded-full shadow-sm">
+              Automation Flow
             </span>
           </div>
 
           {/* Loading indicator */}
           {isLoading && (
-            <div className="flex items-center gap-2 mb-4 text-muted-foreground">
+            <div className="flex items-center gap-2 mb-6 px-4 py-2 rounded-full bg-muted/50 text-muted-foreground border border-border">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Loading stats...</span>
+              <span className="text-sm font-medium">Syncing live data...</span>
             </div>
           )}
 
           {/* Pipeline Nodes */}
-          <div className="space-y-0">
+          <div className="space-y-0 relative z-10">
             {pipelineNodes.map((node, index) => (
               <div key={node.id} className="flex flex-col items-center">
                 {index > 0 && (
@@ -212,24 +212,27 @@ const outreachChannels = [
           </div>
 
           {/* Status summary */}
-          <div className="mt-8 p-4 bg-card border border-border rounded-xl max-w-md">
-            <h4 className="font-medium text-foreground mb-2">Pipeline Status</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="mt-12 p-6 glass-card w-full max-w-md relative z-10 border-t-4 border-t-primary">
+            <h4 className="font-bold text-foreground mb-4 flex items-center gap-2">
+              <Database className="w-5 h-5 text-primary" />
+              Pipeline Overview
+            </h4>
+            <div className="grid grid-cols-2 gap-4 gap-y-6 text-sm">
               <div>
-                <p className="text-muted-foreground">Total Contacts</p>
-                <p className="font-semibold text-foreground">{isLoading ? "..." : (stats?.total || 0).toLocaleString()}</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total Contacts</p>
+                <p className="text-xl font-bold text-foreground tracking-tight">{isLoading ? "..." : (stats?.total || 0).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Validated</p>
-                <p className="font-semibold text-success">{isLoading ? "..." : (stats?.byEmailValidation?.VALID || 0).toLocaleString()}</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Validated</p>
+                <p className="text-xl font-bold text-success tracking-tight">{isLoading ? "..." : (stats?.byEmailValidation?.VALID || 0).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">In Sequence</p>
-                <p className="font-semibold text-primary">{isLoading ? "..." : (stats?.byStatus?.IN_SEQUENCE || 0).toLocaleString()}</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">In Sequence</p>
+                <p className="text-xl font-bold text-primary tracking-tight">{isLoading ? "..." : (stats?.byStatus?.IN_SEQUENCE || 0).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Replied</p>
-                <p className="font-semibold text-node-reply">{isLoading ? "..." : (stats?.replied || 0).toLocaleString()}</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Replied</p>
+                <p className="text-xl font-bold text-node-reply tracking-tight">{isLoading ? "..." : (stats?.replied || 0).toLocaleString()}</p>
               </div>
             </div>
           </div>

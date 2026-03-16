@@ -30,6 +30,7 @@ import type {
   MessageTemplate,
   TemplateChannel,
   ShovelsScraperSettings,
+  HomeownerScraperSettings,
   PermitRoutingSettings,
   PipelineControlSettings,
   ContactReply,
@@ -45,6 +46,11 @@ import type {
   RoutingFilterOptions,
   RoutingTestResult,
   ExampleContact,
+  Homeowner,
+  HomeownerStats,
+  Connection,
+  ConnectionStats,
+  ConnectionResolveResult,
 } from '@/types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -327,6 +333,12 @@ export const api = {
     updateShovelsSettings: (data: Partial<ShovelsScraperSettings>) =>
       request<{ data: ShovelsScraperSettings }>('/api/v1/settings/scrapers/shovels', { method: 'PATCH', body: data }),
     
+    getHomeownerSettings: () =>
+      request<{ data: HomeownerScraperSettings }>('/api/v1/settings/scrapers/homeowner'),
+    
+    updateHomeownerSettings: (data: Partial<HomeownerScraperSettings>) =>
+      request<{ data: HomeownerScraperSettings }>('/api/v1/settings/scrapers/homeowner', { method: 'PATCH', body: data }),
+    
     // Permit routing
     getPermitRoutingSettings: () =>
       request<{ data: PermitRoutingSettings }>('/api/v1/settings/permit-routing'),
@@ -363,13 +375,65 @@ export const api = {
     getSchedulerStatus: () =>
       request<{ data: { isRunning: boolean; jobs: Array<{ name: string; schedule: string; humanReadable: string }> } }>('/api/v1/settings/schedules/status'),
     
-    triggerJob: (jobName: 'shovels' | 'enrich' | 'merge' | 'validate' | 'enroll') =>
+    triggerJob: (jobName: 'shovels' | 'homeowner' | 'enrich' | 'merge' | 'validate' | 'enroll') =>
       request<{ data: { jobName: string; result: unknown } }>(`/api/v1/settings/schedules/trigger/${jobName}`, { method: 'POST' }),
     
     reloadScheduler: () =>
       request<{ data: { isRunning: boolean; jobs: Array<{ name: string; schedule: string; humanReadable: string }> } }>('/api/v1/settings/schedules/reload', { method: 'POST' }),
   },
   
+  // ==================== HOMEOWNERS ====================
+  homeowners: {
+    list: async (filters?: { search?: string; status?: string; city?: string; state?: string; geoId?: string; realieEnriched?: string; page?: number; limit?: number; sort?: string; order?: string }): Promise<PaginatedResponse<Homeowner>> => {
+      const response = await request<{ success: boolean; data: Homeowner[]; meta?: { pagination?: PaginatedResponse<Homeowner>['pagination'] } }>('/api/v1/homeowners', { params: filters as any });
+      return {
+        data: response.data,
+        pagination: response.meta?.pagination || { page: 1, limit: 25, total: response.data.length, totalPages: 1 },
+      };
+    },
+
+    get: (id: string) =>
+      request<{ data: Homeowner }>(`/api/v1/homeowners/${id}`),
+
+    stats: () =>
+      request<{ data: HomeownerStats }>('/api/v1/homeowners/stats'),
+
+    delete: (id: string) =>
+      request<{ success: boolean }>(`/api/v1/homeowners/${id}`, { method: 'DELETE' }),
+
+    export: () =>
+      request<string>('/api/v1/homeowners/export'),
+
+    triggerEnrich: (batchSize?: number) =>
+      request<{ data: { total: number; enriched: number; notFound: number; errors: number } }>('/api/v1/homeowners/enrich', { method: 'POST', body: { batchSize } }),
+  },
+
+  // ==================== CONNECTIONS ====================
+  connections: {
+    list: async (filters?: { search?: string; permitType?: string; city?: string; state?: string; page?: number; limit?: number; sort?: string; order?: string }): Promise<PaginatedResponse<Connection>> => {
+      const response = await request<{ success: boolean; data: Connection[]; meta?: { pagination?: PaginatedResponse<Connection>['pagination'] } }>('/api/v1/connections', { params: filters as any });
+      return {
+        data: response.data,
+        pagination: response.meta?.pagination || { page: 1, limit: 25, total: response.data.length, totalPages: 1 },
+      };
+    },
+
+    get: (id: string) =>
+      request<{ data: Connection }>(`/api/v1/connections/${id}`),
+
+    stats: () =>
+      request<{ data: ConnectionStats }>('/api/v1/connections/stats'),
+
+    resolve: (batchSize?: number) =>
+      request<{ data: ConnectionResolveResult }>('/api/v1/connections/resolve', { method: 'POST', body: { batchSize } }),
+
+    getByContact: (contactId: string) =>
+      request<{ data: Connection[] }>(`/api/v1/connections/contact/${contactId}`),
+
+    getByHomeowner: (homeownerId: string) =>
+      request<{ data: Connection[] }>(`/api/v1/connections/homeowner/${homeownerId}`),
+  },
+
   // ==================== GHL (GoHighLevel) ====================
   ghl: {
     status: () =>
