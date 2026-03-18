@@ -145,7 +145,7 @@ export const WorkflowProgress = ({
   const overallPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
   return (
-    <Card className="max-w-md border-border/50 overflow-hidden">
+    <Card className="max-w-xl border-border/50 overflow-hidden">
       <CardHeader className="p-4 pb-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm font-semibold truncate">{name}</CardTitle>

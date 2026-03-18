@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ConversationList } from '../chat/ConversationList';
+import { JobsPanel } from '../chat/JobsPanel';
 import { ChatView } from '../chat/ChatView';
 import { useChat } from '@/hooks/useChat';
-import { Bot, LayoutDashboard, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { Bot, LayoutDashboard, PanelLeftClose, PanelLeft, MessageSquare, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -24,10 +25,13 @@ interface Conversation {
   messages?: Array<{ content: string; role: string; createdAt: string }>;
 }
 
+type SidebarTab = 'chats' | 'jobs';
+
 export const ChatLayout = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chats');
 
   const {
     messages,
@@ -36,6 +40,7 @@ export const ChatLayout = () => {
     toolSteps,
     isThinking,
     sendMessage,
+    cancelStream,
     isLoading,
     activeWorkflows,
     activeJobs,
@@ -138,12 +143,14 @@ export const ChatLayout = () => {
     }
   }, [isStreaming, activeConversationId, loadConversations]);
 
+  const runningCount = activeWorkflows.filter(w => w.status === 'running').length;
+
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-[#212121]">
       {/* Sidebar */}
       <aside
         className={cn(
-          'h-screen bg-[#000000] flex flex-col flex-shrink-0 transition-all duration-300',
+          'h-screen bg-[#000000] flex flex-col flex-shrink-0 transition-all duration-300 border-r border-[#202020]',
           sidebarOpen ? 'w-[260px]' : 'w-[68px] overflow-hidden'
         )}
       >
@@ -157,16 +164,87 @@ export const ChatLayout = () => {
           </div>
         </div>
 
-        {/* Conversation list */}
-        <div className="flex-1 overflow-hidden">
-          <ConversationList
-            conversations={conversations}
-            activeConversationId={activeConversationId}
-            onSelectConversation={setActiveConversationId}
-            onNewConversation={handleNewConversation}
-            onDeleteConversation={handleDeleteConversation}
-            sidebarOpen={sidebarOpen}
-          />
+        {/* Tab switcher */}
+        {sidebarOpen ? (
+          <div className="px-3 pb-2 flex gap-1">
+            <button
+              onClick={() => setSidebarTab('chats')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors',
+                sidebarTab === 'chats'
+                  ? 'bg-[#202020] text-[#ececec]'
+                  : 'text-[#666666] hover:text-[#9b9b9b] hover:bg-[#0a0a0a]'
+              )}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              Chats
+            </button>
+            <button
+              onClick={() => setSidebarTab('jobs')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors relative',
+                sidebarTab === 'jobs'
+                  ? 'bg-[#202020] text-[#ececec]'
+                  : 'text-[#666666] hover:text-[#9b9b9b] hover:bg-[#0a0a0a]'
+              )}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              Jobs
+              {runningCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] flex items-center justify-center font-bold animate-pulse">
+                  {runningCount}
+                </span>
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-1 px-2 pb-2">
+            <button
+              onClick={() => setSidebarTab('chats')}
+              className={cn(
+                'w-10 h-8 rounded-lg flex items-center justify-center transition-colors',
+                sidebarTab === 'chats' ? 'bg-[#202020] text-[#ececec]' : 'text-[#666666] hover:text-[#9b9b9b]'
+              )}
+              title="Chats"
+            >
+              <MessageSquare className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setSidebarTab('jobs')}
+              className={cn(
+                'w-10 h-8 rounded-lg flex items-center justify-center transition-colors relative',
+                sidebarTab === 'jobs' ? 'bg-[#202020] text-[#ececec]' : 'text-[#666666] hover:text-[#9b9b9b]'
+              )}
+              title="Jobs"
+            >
+              <Zap className="w-4 h-4" />
+              {runningCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-blue-500 text-white text-[8px] flex items-center justify-center font-bold animate-pulse">
+                  {runningCount}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Tab content */}
+        <div className="flex-1 overflow-hidden border-b border-[#202020]">
+          {sidebarTab === 'chats' ? (
+            <ConversationList
+              conversations={conversations}
+              activeConversationId={activeConversationId}
+              onSelectConversation={setActiveConversationId}
+              onNewConversation={handleNewConversation}
+              onDeleteConversation={handleDeleteConversation}
+              sidebarOpen={sidebarOpen}
+            />
+          ) : (
+            <JobsPanel
+              activeWorkflows={activeWorkflows}
+              activeJobs={activeJobs}
+              sidebarOpen={sidebarOpen}
+            />
+          )}
         </div>
 
         {/* Classic mode toggle */}
@@ -186,7 +264,7 @@ export const ChatLayout = () => {
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#212121] h-screen">
         {/* Top bar */}
-        <div className="h-14 flex items-center px-4 gap-2 flex-shrink-0">
+        <div className="h-14 flex items-center px-4 gap-2 flex-shrink-0 border-b border-[#2a2a2a]">
           <Button
             variant="ghost"
             size="icon"
@@ -210,9 +288,11 @@ export const ChatLayout = () => {
           toolSteps={toolSteps}
           isThinking={isThinking}
           onSendMessage={handleSendMessage}
+          onCancelStream={cancelStream}
           isLoading={isLoading}
           activeWorkflows={activeWorkflows}
           activeJobs={activeJobs}
+          conversationId={activeConversationId}
         />
       </div>
     </div>

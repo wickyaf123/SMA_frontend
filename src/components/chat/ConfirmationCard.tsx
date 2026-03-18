@@ -37,7 +37,7 @@ export const ConfirmationCard = ({
 
   return (
     <Card className={cn(
-      'max-w-md border-border/50 overflow-hidden',
+      'max-w-xl border-border/50 overflow-hidden',
       hasDestructive && !isDisabled && 'border-destructive/30',
     )}>
       <CardHeader className="p-4 pb-2">
@@ -53,7 +53,7 @@ export const ConfirmationCard = ({
           )}
           <div className="flex-1 min-w-0">
             <CardTitle className="text-sm font-semibold leading-tight">{title}</CardTitle>
-            <CardDescription className="text-xs mt-1 leading-relaxed">{description}</CardDescription>
+            <CardDescription className="text-xs mt-1 leading-relaxed whitespace-pre-wrap">{description}</CardDescription>
           </div>
         </div>
       </CardHeader>

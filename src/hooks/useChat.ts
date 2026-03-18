@@ -53,6 +53,7 @@ interface UseChatReturn {
   toolSteps: ToolStep[];
   isThinking: boolean;
   sendMessage: (content: string) => Promise<void>;
+  cancelStream: () => void;
   isLoading: boolean;
   activeWorkflows: ActiveWorkflow[];
   activeJobs: ActiveJob[];
@@ -451,6 +452,16 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     }
   };
 
+  const cancelStream = useCallback(() => {
+    const convId = conversationIdRef.current;
+    if (!convId || !socketRef.current) return;
+    socketRef.current.emit('chat:cancel', convId);
+    setIsStreaming(false);
+    setIsThinking(false);
+    setStreamingMessage('');
+    setToolSteps([]);
+  }, []);
+
   const sendMessage = useCallback(async (content: string) => {
     const convId = conversationIdRef.current;
     if (!convId || !content) return;
@@ -507,6 +518,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     toolSteps,
     isThinking,
     sendMessage,
+    cancelStream,
     isLoading,
     activeWorkflows,
     activeJobs,

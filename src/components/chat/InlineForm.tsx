@@ -21,7 +21,7 @@ export interface InlineFormField {
   type: 'text' | 'email' | 'number' | 'select' | 'textarea' | 'checkbox';
   required?: boolean;
   placeholder?: string;
-  options?: string[];
+  options?: (string | { label: string; value: string })[];
   defaultValue?: string;
 }
 
@@ -125,11 +125,15 @@ export const InlineForm = ({
                 <SelectValue placeholder={field.placeholder || 'Select...'} />
               </SelectTrigger>
               <SelectContent>
-                {(field.options || []).map((opt) => (
-                  <SelectItem key={opt} value={opt} className="text-xs">
-                    {opt}
-                  </SelectItem>
-                ))}
+                {(field.options || []).map((opt) => {
+                  const value = typeof opt === 'string' ? opt : opt.value;
+                  const label = typeof opt === 'string' ? opt : opt.label;
+                  return (
+                    <SelectItem key={value} value={value} className="text-xs">
+                      {label}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             {error && <p className="text-[11px] text-destructive">{error}</p>}
