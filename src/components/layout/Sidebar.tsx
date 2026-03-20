@@ -1,15 +1,16 @@
 import { Link, useLocation } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  Users, 
-  GitBranch, 
-  Send, 
+import {
+  LayoutDashboard,
+  Users,
+  GitBranch,
+  Send,
   Settings,
   Plug2,
   Zap,
   ChevronRight,
   LifeBuoy,
-  Bot
+  Bot,
+  History
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +49,7 @@ export const Sidebar = () => {
     { id: "/classic/leads", icon: Users, label: "Leads Database" },
     { id: "/classic/campaigns", icon: Send, label: "Campaigns" },
     { id: "/classic/integrations", icon: Plug2, label: "Integrations" },
+    { id: "/classic/history", icon: History, label: "History" },
   ];
 
   return (

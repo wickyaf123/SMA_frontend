@@ -94,49 +94,56 @@ function buildUrl(endpoint: string, params?: Record<string, string | number | bo
 }
 
 /**
- * Main API request function
+ * Main API request function with single retry on network failures
  */
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { params, body, ...fetchOptions } = options;
-  
-  const url = buildUrl(endpoint, params);
-  
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...fetchOptions.headers,
+  const doRequest = async () => {
+    const { params, body, ...fetchOptions } = options;
+
+    const url = buildUrl(endpoint, params);
+
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...fetchOptions.headers,
+    };
+
+    const response = await fetch(url, {
+      ...fetchOptions,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    // Handle non-JSON responses (like CSV export)
+    const contentType = response.headers.get('content-type');
+    if (contentType?.includes('text/csv')) {
+      return response.text() as unknown as T;
+    }
+
+    // Parse JSON response
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok) {
+      throw new ApiError(response.status, response.statusText, data);
+    }
+
+    return data as T;
   };
-  
-  // Add API key as Bearer token for authentication
-  const apiKey = import.meta.env.VITE_API_KEY;
-  if (apiKey) {
-    (headers as Record<string, string>)['Authorization'] = `Bearer ${apiKey}`;
-  }
-  
-  const response = await fetch(url, {
-    ...fetchOptions,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  
-  // Handle non-JSON responses (like CSV export)
-  const contentType = response.headers.get('content-type');
-  if (contentType?.includes('text/csv')) {
-    return response.text() as unknown as T;
-  }
-  
-  // Parse JSON response
-  let data: unknown;
+
   try {
-    data = await response.json();
-  } catch {
-    data = null;
+    return await doRequest();
+  } catch (error) {
+    // Retry once on network errors (not HTTP errors)
+    if (error instanceof TypeError || (error instanceof Error && !('status' in error))) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return doRequest();
+    }
+    throw error;
   }
-  
-  if (!response.ok) {
-    throw new ApiError(response.status, response.statusText, data);
-  }
-  
-  return data as T;
 }
 
 /**
@@ -158,151 +165,150 @@ export const api = {
   // ==================== CONTACTS ====================
   contacts: {
     list: async (filters?: ContactFilters): Promise<PaginatedResponse<Contact>> => {
-      const response = await request<{ success: boolean; data: Contact[]; meta?: { pagination?: PaginatedResponse<Contact>['pagination'] } }>('/contacts', { params: filters as Record<string, string | number | boolean | string[] | undefined> });
+      const response = await request<{ success: boolean; data: Contact[]; meta?: { pagination?: PaginatedResponse<Contact>['pagination'] } }>('/api/v1/contacts', { params: filters as Record<string, string | number | boolean | string[] | undefined> });
       return {
         data: response.data,
         pagination: response.meta?.pagination || { page: 1, limit: 10, total: response.data.length, totalPages: 1 },
       };
     },
-    
+
     get: (id: string) =>
-      request<{ data: Contact }>(`/contacts/${id}`),
-    
+      request<{ data: Contact }>(`/api/v1/contacts/${id}`),
+
     create: (data: CreateContactInput) =>
-      request<{ data: Contact }>('/contacts', { method: 'POST', body: data }),
-    
+      request<{ data: Contact }>('/api/v1/contacts', { method: 'POST', body: data }),
+
     update: (id: string, data: UpdateContactInput) =>
-      request<{ data: Contact }>(`/contacts/${id}`, { method: 'PATCH', body: data }),
-    
+      request<{ data: Contact }>(`/api/v1/contacts/${id}`, { method: 'PATCH', body: data }),
+
     delete: (id: string) =>
-      request<{ success: boolean }>(`/contacts/${id}`, { method: 'DELETE' }),
-    
+      request<{ success: boolean }>(`/api/v1/contacts/${id}`, { method: 'DELETE' }),
+
     stats: () =>
-      request<{ data: ContactStats }>('/contacts/stats'),
-    
+      request<{ data: ContactStats }>('/api/v1/contacts/stats'),
+
     export: (filters?: ContactFilters) =>
-      request<string>('/contacts/export', { params: filters as Record<string, string | number | boolean | string[] | undefined> }),
-    
+      request<string>('/api/v1/contacts/export', { params: filters as Record<string, string | number | boolean | string[] | undefined> }),
+
     // Import operations
     importApollo: (data: ApolloImportInput) =>
-      request<{ data: ImportJob }>('/contacts/import/apollo', { method: 'POST', body: data }),
-    
+      request<{ data: ImportJob }>('/api/v1/contacts/import/apollo', { method: 'POST', body: data }),
+
     importCsv: (formData: FormData) =>
-      fetch(`${API_BASE_URL}/contacts/import/csv`, {
+      fetch(`${API_BASE_URL}/api/v1/contacts/import/csv`, {
         method: 'POST',
         body: formData,
-        headers: import.meta.env.VITE_API_KEY ? { 'Authorization': `Bearer ${import.meta.env.VITE_API_KEY}` } : {},
       }).then(res => res.json()),
-    
+
     importStatus: (jobId: string) =>
-      request<{ data: ImportJob }>(`/contacts/import/${jobId}/status`),
-    
+      request<{ data: ImportJob }>(`/api/v1/contacts/import/${jobId}/status`),
+
     // SMS operations
     sendSms: (contactId: string, data: SendSMSInput) =>
-      request<{ success: boolean; messageId?: string }>(`/contacts/${contactId}/sms`, { method: 'POST', body: data }),
-    
+      request<{ success: boolean; messageId?: string }>(`/api/v1/contacts/${contactId}/sms`, { method: 'POST', body: data }),
+
     previewSms: (contactId: string, data: { message: string }) =>
-      request<{ preview: string; characterCount: number; segments: number }>(`/contacts/${contactId}/sms/preview`, { method: 'POST', body: data }),
-    
+      request<{ preview: string; characterCount: number; segments: number }>(`/api/v1/contacts/${contactId}/sms/preview`, { method: 'POST', body: data }),
+
     // Reply and activity
     getReplies: (contactId: string) =>
-      request<{ data: ContactReply[] }>(`/contacts/${contactId}/replies`),
-    
+      request<{ data: ContactReply[] }>(`/api/v1/contacts/${contactId}/replies`),
+
     getActivity: (contactId: string, limit?: number) =>
-      request<{ data: ContactActivity[] }>(`/contacts/${contactId}/activity`, { params: { limit } }),
-    
+      request<{ data: ContactActivity[] }>(`/api/v1/contacts/${contactId}/activity`, { params: { limit } }),
+
     // GHL messages (live fetch)
     getMessages: (contactId: string) =>
-      request<{ data: ContactMessages }>(`/contacts/${contactId}/messages`),
+      request<{ data: ContactMessages }>(`/api/v1/contacts/${contactId}/messages`),
   },
   
   // ==================== COMPANIES ====================
   companies: {
     list: (params?: { page?: number; limit?: number; search?: string }) =>
-      request<PaginatedResponse<Company>>('/companies', { params }),
-    
+      request<PaginatedResponse<Company>>('/api/v1/companies', { params }),
+
     get: (id: string) =>
-      request<{ data: Company }>(`/companies/${id}`),
-    
+      request<{ data: Company }>(`/api/v1/companies/${id}`),
+
     create: (data: Partial<Company>) =>
-      request<{ data: Company }>('/companies', { method: 'POST', body: data }),
-    
+      request<{ data: Company }>('/api/v1/companies', { method: 'POST', body: data }),
+
     update: (id: string, data: Partial<Company>) =>
-      request<{ data: Company }>(`/companies/${id}`, { method: 'PATCH', body: data }),
-    
+      request<{ data: Company }>(`/api/v1/companies/${id}`, { method: 'PATCH', body: data }),
+
     delete: (id: string) =>
-      request<{ success: boolean }>(`/companies/${id}`, { method: 'DELETE' }),
+      request<{ success: boolean }>(`/api/v1/companies/${id}`, { method: 'DELETE' }),
   },
   
   // ==================== CAMPAIGNS ====================
   campaigns: {
     list: (filters?: CampaignFilters) =>
-      request<PaginatedResponse<Campaign>>('/campaigns', { params: filters as Record<string, string | number | boolean | string[] | undefined> }),
-    
+      request<PaginatedResponse<Campaign>>('/api/v1/campaigns', { params: filters as Record<string, string | number | boolean | string[] | undefined> }),
+
     get: (id: string) =>
-      request<{ data: Campaign }>(`/campaigns/${id}`),
-    
+      request<{ data: Campaign }>(`/api/v1/campaigns/${id}`),
+
     create: (data: CreateCampaignInput) =>
-      request<{ data: Campaign }>('/campaigns', { method: 'POST', body: data }),
-    
+      request<{ data: Campaign }>('/api/v1/campaigns', { method: 'POST', body: data }),
+
     update: (id: string, data: UpdateCampaignInput) =>
-      request<{ data: Campaign }>(`/campaigns/${id}`, { method: 'PATCH', body: data }),
-    
+      request<{ data: Campaign }>(`/api/v1/campaigns/${id}`, { method: 'PATCH', body: data }),
+
     delete: (id: string) =>
-      request<{ success: boolean }>(`/campaigns/${id}`, { method: 'DELETE' }),
-    
+      request<{ success: boolean }>(`/api/v1/campaigns/${id}`, { method: 'DELETE' }),
+
     stats: (id: string) =>
-      request<{ data: CampaignStats }>(`/campaigns/${id}/stats`),
-    
+      request<{ data: CampaignStats }>(`/api/v1/campaigns/${id}/stats`),
+
     // Enrollment operations
     enroll: (campaignId: string, data: EnrollContactsInput) =>
-      request<{ success: boolean; enrolled: number }>(`/campaigns/${campaignId}/enroll`, { method: 'POST', body: data }),
-    
+      request<{ success: boolean; enrolled: number }>(`/api/v1/campaigns/${campaignId}/enroll`, { method: 'POST', body: data }),
+
     stopEnrollment: (campaignId: string, contactId: string) =>
-      request<{ success: boolean }>(`/campaigns/${campaignId}/stop/${contactId}`, { method: 'POST' }),
-    
+      request<{ success: boolean }>(`/api/v1/campaigns/${campaignId}/stop/${contactId}`, { method: 'POST' }),
+
     getEnrollments: (campaignId: string, params?: { page?: number; limit?: number; status?: string }) =>
-      request<PaginatedResponse<CampaignEnrollment>>(`/campaigns/${campaignId}/enrollments`, { params }),
-    
+      request<PaginatedResponse<CampaignEnrollment>>(`/api/v1/campaigns/${campaignId}/enrollments`, { params }),
+
     // Aggregated outreach stats by channel
     outreachStats: () =>
-      request<{ data: OutreachStats }>('/campaigns/outreach-stats'),
-    
+      request<{ data: OutreachStats }>('/api/v1/campaigns/outreach-stats'),
+
     // Sync campaigns from Instantly
     syncFromInstantly: () =>
       request<{ success: boolean; data: { created: number; updated: number; campaigns: Campaign[] }; message: string }>(
-        '/campaigns/sync/instantly', 
+        '/api/v1/campaigns/sync/instantly',
         { method: 'POST' }
       ),
-    
+
     // ==================== ROUTING RULES ====================
     routingRules: {
       list: (params?: { isActive?: boolean; campaignId?: string }) =>
-        request<{ success: boolean; data: CampaignRoutingRule[]; count: number }>('/campaigns/routing-rules', { params }),
-      
+        request<{ success: boolean; data: CampaignRoutingRule[]; count: number }>('/api/v1/campaigns/routing-rules', { params }),
+
       get: (id: string) =>
-        request<{ success: boolean; data: CampaignRoutingRule }>(`/campaigns/routing-rules/${id}`),
-      
+        request<{ success: boolean; data: CampaignRoutingRule }>(`/api/v1/campaigns/routing-rules/${id}`),
+
       create: (data: CreateRoutingRuleInput) =>
-        request<{ success: boolean; data: CampaignRoutingRule; message: string }>('/campaigns/routing-rules', { method: 'POST', body: data }),
-      
+        request<{ success: boolean; data: CampaignRoutingRule; message: string }>('/api/v1/campaigns/routing-rules', { method: 'POST', body: data }),
+
       update: (id: string, data: UpdateRoutingRuleInput) =>
-        request<{ success: boolean; data: CampaignRoutingRule; message: string }>(`/campaigns/routing-rules/${id}`, { method: 'PUT', body: data }),
-      
+        request<{ success: boolean; data: CampaignRoutingRule; message: string }>(`/api/v1/campaigns/routing-rules/${id}`, { method: 'PUT', body: data }),
+
       delete: (id: string) =>
-        request<{ success: boolean; message: string }>(`/campaigns/routing-rules/${id}`, { method: 'DELETE' }),
-      
+        request<{ success: boolean; message: string }>(`/api/v1/campaigns/routing-rules/${id}`, { method: 'DELETE' }),
+
       reorder: (ruleIds: string[]) =>
-        request<{ success: boolean; data: CampaignRoutingRule[]; message: string }>('/campaigns/routing-rules/reorder', { method: 'POST', body: { ruleIds } }),
-      
+        request<{ success: boolean; data: CampaignRoutingRule[]; message: string }>('/api/v1/campaigns/routing-rules/reorder', { method: 'POST', body: { ruleIds } }),
+
       test: (contactId: string) =>
-        request<{ success: boolean; data: RoutingTestResult; message: string }>('/campaigns/routing-rules/test', { method: 'POST', body: { contactId } }),
-      
+        request<{ success: boolean; data: RoutingTestResult; message: string }>('/api/v1/campaigns/routing-rules/test', { method: 'POST', body: { contactId } }),
+
       filterOptions: () =>
-        request<{ success: boolean; data: RoutingFilterOptions }>('/campaigns/routing-rules/filter-options'),
-      
+        request<{ success: boolean; data: RoutingFilterOptions }>('/api/v1/campaigns/routing-rules/filter-options'),
+
       getExampleContacts: (limit?: number) =>
-        request<{ success: boolean; data: ExampleContact[] }>(`/campaigns/routing-rules/example-contacts${limit ? `?limit=${limit}` : ''}`),
+        request<{ success: boolean; data: ExampleContact[] }>(`/api/v1/campaigns/routing-rules/example-contacts${limit ? `?limit=${limit}` : ''}`),
     },
   },
   
@@ -437,34 +443,34 @@ export const api = {
   // ==================== GHL (GoHighLevel) ====================
   ghl: {
     status: () =>
-      request<{ connected: boolean; phoneNumber?: string; locationId?: string }>('/ghl/status'),
-    
+      request<{ connected: boolean; phoneNumber?: string; locationId?: string }>('/api/v1/ghl/status'),
+
     sendSms: (contactId: string, message: string) =>
-      request<{ success: boolean; messageId?: string }>('/ghl/sms', { method: 'POST', body: { contactId, message } }),
+      request<{ success: boolean; messageId?: string }>('/api/v1/ghl/sms', { method: 'POST', body: { contactId, message } }),
   },
   
   // ==================== ACTIVITY ====================
   activity: {
     list: (params?: { page?: number; limit?: number; action?: string; contactId?: string; channel?: string; actorType?: string }) =>
-      request<PaginatedResponse<ActivityLog>>('/activity', { params }),
-    
+      request<PaginatedResponse<ActivityLog>>('/api/v1/activity', { params }),
+
     recent: (limit?: number) =>
-      request<{ data: ActivityLog[] }>('/activity/recent', { params: { limit } }),
-    
+      request<{ data: ActivityLog[] }>('/api/v1/activity/recent', { params: { limit } }),
+
     stats: (days?: number) =>
-      request<{ data: { byAction: Record<string, number>; byChannel: Record<string, number> } }>('/activity/stats', { params: { days } }),
+      request<{ data: { byAction: Record<string, number>; byChannel: Record<string, number> } }>('/api/v1/activity/stats', { params: { days } }),
   },
   
   // ==================== WEBHOOKS ====================
   webhooks: {
     logs: (params?: { page?: number; limit?: number; source?: string; eventType?: string; processed?: boolean }) =>
-      request<PaginatedResponse<WebhookLog>>('/webhooks/logs', { params }),
-    
+      request<PaginatedResponse<WebhookLog>>('/api/v1/webhooks/logs', { params }),
+
     recentLogs: (limit?: number) =>
-      request<{ data: WebhookLog[] }>('/webhooks/logs/recent', { params: { limit } }),
-    
+      request<{ data: WebhookLog[] }>('/api/v1/webhooks/logs/recent', { params: { limit } }),
+
     stats: (days?: number) =>
-      request<{ data: { bySource: Record<string, number>; processed: number; pending: number; errors: number } }>('/webhooks/logs/stats', { params: { days } }),
+      request<{ data: { bySource: Record<string, number>; processed: number; pending: number; errors: number } }>('/api/v1/webhooks/logs/stats', { params: { days } }),
   },
   
   // ==================== JOBS ====================
@@ -498,28 +504,62 @@ export const api = {
   // ==================== TEMPLATES ====================
   templates: {
     list: (params?: { channel?: TemplateChannel; isActive?: boolean; isDefault?: boolean; tags?: string; limit?: number; offset?: number }) =>
-      request<PaginatedResponse<MessageTemplate>>('/templates', { params }),
-    
+      request<PaginatedResponse<MessageTemplate>>('/api/v1/templates', { params }),
+
     get: (id: string) =>
-      request<MessageTemplate>(`/templates/${id}`),
-    
+      request<MessageTemplate>(`/api/v1/templates/${id}`),
+
     create: (data: { name: string; channel: TemplateChannel; body: string; subject?: string; description?: string; variables?: string[]; tags?: string[] }) =>
-      request<MessageTemplate>('/templates', { method: 'POST', body: data }),
-    
+      request<MessageTemplate>('/api/v1/templates', { method: 'POST', body: data }),
+
     update: (id: string, data: Partial<{ name: string; body: string; subject?: string; description?: string; isActive?: boolean; variables?: string[]; tags?: string[] }>) =>
-      request<MessageTemplate>(`/templates/${id}`, { method: 'PATCH', body: data }),
-    
+      request<MessageTemplate>(`/api/v1/templates/${id}`, { method: 'PATCH', body: data }),
+
     delete: (id: string) =>
-      request<{ success: boolean }>(`/templates/${id}`, { method: 'DELETE' }),
-    
+      request<{ success: boolean }>(`/api/v1/templates/${id}`, { method: 'DELETE' }),
+
     preview: (id: string, sampleData?: Record<string, string>) =>
-      request<{ body: string; subject?: string }>(`/templates/${id}/preview`, { method: 'POST', body: { sampleData } }),
-    
+      request<{ body: string; subject?: string }>(`/api/v1/templates/${id}/preview`, { method: 'POST', body: { sampleData } }),
+
     setDefault: (id: string) =>
-      request<MessageTemplate>(`/templates/${id}/set-default`, { method: 'POST' }),
-    
+      request<MessageTemplate>(`/api/v1/templates/${id}/set-default`, { method: 'POST' }),
+
     getDefault: (channel: TemplateChannel) =>
-      request<MessageTemplate | null>(`/templates/default/${channel}`),
+      request<MessageTemplate | null>(`/api/v1/templates/default/${channel}`),
+  },
+
+  // ==================== CHAT ====================
+  chat: {
+    listConversations: () =>
+      request<{ success: boolean; data: any[] }>('/api/v1/chat/conversations'),
+
+    createConversation: (title: string) =>
+      request<{ success: boolean; data: any }>('/api/v1/chat/conversations', { method: 'POST', body: { title } }),
+
+    getConversation: (id: string) =>
+      request<{ success: boolean; data: any }>(`/api/v1/chat/conversations/${id}`),
+
+    deleteConversation: (id: string) =>
+      request<{ success: boolean }>(`/api/v1/chat/conversations/${id}`, { method: 'DELETE' }),
+
+    searchConversations: (query: string) =>
+      request<{ success: boolean; data: any[] }>('/api/v1/chat/conversations/search', { params: { q: query } }),
+
+    sendMessage: (conversationId: string, content: string) =>
+      request<{ success: boolean }>(`/api/v1/chat/conversations/${conversationId}/messages`, { method: 'POST', body: { content } }),
+
+    sendFeedback: (messageId: string, rating: 'up' | 'down', comment?: string) =>
+      request<{ success: boolean }>(`/api/v1/chat/messages/${messageId}/feedback`, { method: 'POST', body: { rating, comment } }),
+
+    uploadFile: async (conversationId: string, file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch(`${API_BASE_URL}/api/v1/chat/conversations/${conversationId}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      return response.json();
+    },
   },
 };
 

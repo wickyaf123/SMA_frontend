@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Bot, User, ThumbsUp, ThumbsDown, Download } from 'lucide-react';
+import { User, ThumbsUp, ThumbsDown, Download } from 'lucide-react';
 import { useState, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -7,6 +7,8 @@ import type { Components } from 'react-markdown';
 import { ConfirmationCard } from './ConfirmationCard';
 import { InlineForm } from './InlineForm';
 import { QuickReplyButtons } from './QuickReplyButtons';
+import { api } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 export interface ChatMessage {
   id: string;
@@ -52,8 +54,7 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
   const [showFeedbackComment, setShowFeedbackComment] = useState(false);
   const [feedbackComment, setFeedbackComment] = useState('');
-
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const { toast } = useToast();
 
   const handleFeedback = async (rating: 'up' | 'down') => {
     try {
@@ -63,20 +64,15 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
         return;
       }
 
-      await fetch(`${API_BASE_URL}/api/v1/chat/messages/${message.id}/feedback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(import.meta.env.VITE_API_KEY
-            ? { Authorization: `Bearer ${import.meta.env.VITE_API_KEY}` }
-            : {}),
-        },
-        body: JSON.stringify({ rating, comment: feedbackComment || undefined }),
-      });
+      await api.chat.sendFeedback(message.id, rating, feedbackComment || undefined);
       setFeedback(rating);
       setShowFeedbackComment(false);
+      toast({
+        title: 'Feedback sent',
+        description: rating === 'up' ? 'Thanks for the positive feedback!' : 'Thanks for the feedback. We\'ll work on improving.',
+      });
     } catch (error) {
-      console.error('Failed to submit feedback:', error);
+      toast({ title: 'Feedback failed', description: 'Could not submit feedback.', variant: 'destructive' });
     }
   };
 
@@ -310,8 +306,8 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
   return (
     <div className={cn('group flex gap-4 w-full', isUser ? 'flex-row-reverse' : '')}>
       {!isUser && (
-        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.1)]">
-          <Bot className="w-4 h-4" />
+        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-black shadow-[0_0_10px_rgba(255,255,255,0.1)]">
+          <span className="text-white font-bold text-sm leading-none">J</span>
         </div>
       )}
 
@@ -320,8 +316,8 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
           <div className={cn(
             'text-[15px] leading-relaxed',
             isUser
-              ? 'bg-[#2f2f2f] text-[#ececec] px-5 py-2.5 rounded-3xl'
-              : 'text-[#ececec] py-1'
+              ? 'bg-muted text-foreground px-5 py-2.5 rounded-3xl'
+              : 'text-foreground py-1'
           )}>
             {isUser ? (
               <span className="whitespace-pre-wrap break-words leading-relaxed">{displayContent}</span>
@@ -351,8 +347,8 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
             <button
               onClick={() => handleFeedback('up')}
               className={cn(
-                'p-1 rounded hover:bg-[#2f2f2f] transition-colors',
-                feedback === 'up' ? 'text-green-400' : 'text-[#666666] hover:text-[#ececec]'
+                'p-1 rounded hover:bg-muted transition-colors',
+                feedback === 'up' ? 'text-green-400' : 'text-muted-foreground hover:text-foreground'
               )}
             >
               <ThumbsUp className="w-3.5 h-3.5" />
@@ -360,8 +356,8 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
             <button
               onClick={() => handleFeedback('down')}
               className={cn(
-                'p-1 rounded hover:bg-[#2f2f2f] transition-colors',
-                feedback === 'down' ? 'text-red-400' : 'text-[#666666] hover:text-[#ececec]'
+                'p-1 rounded hover:bg-muted transition-colors',
+                feedback === 'down' ? 'text-red-400' : 'text-muted-foreground hover:text-foreground'
               )}
             >
               <ThumbsDown className="w-3.5 h-3.5" />
@@ -373,7 +369,7 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
                   value={feedbackComment}
                   onChange={(e) => setFeedbackComment(e.target.value)}
                   placeholder="What went wrong?"
-                  className="h-6 px-2 text-xs bg-[#1a1a1a] border border-[#333333] rounded text-[#ececec] placeholder:text-[#666666] focus:outline-none focus:border-[#555555] w-40"
+                  className="h-6 px-2 text-xs bg-card border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border w-40"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleFeedback('down');
                     if (e.key === 'Escape') setShowFeedbackComment(false);

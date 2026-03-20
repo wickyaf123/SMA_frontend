@@ -15,17 +15,38 @@ import { Leads } from "./components/leads/Leads";
 import { Campaigns } from "./components/campaigns/Campaigns";
 import { Integrations } from "./components/integrations/Integrations";
 import { Settings } from "./components/settings/Settings";
+import { HistoryLog } from "./components/history/HistoryLog";
 
-// Configure React Query with sensible defaults
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
       retry: 1,
       refetchOnWindowFocus: false,
     },
   },
 });
+
+const AppRoutes = () => (
+  <Routes>
+    {/* Jerry Chat - default landing */}
+    <Route path="/" element={<ChatLayout />} />
+    <Route path="/chat" element={<ChatLayout />} />
+
+    {/* Classic Dashboard */}
+    <Route path="/classic" element={<AppLayout />}>
+      <Route index element={<Navigate to="/classic/overview" replace />} />
+      <Route path="overview" element={<Overview />} />
+      <Route path="pipeline" element={<PipelineCanvas />} />
+      <Route path="leads" element={<Leads />} />
+      <Route path="campaigns" element={<Campaigns onNavigateToSettings={() => {}} />} />
+      <Route path="integrations" element={<Integrations />} />
+      <Route path="settings" element={<Settings />} />
+      <Route path="history" element={<HistoryLog />} />
+    </Route>
+    <Route path="*" element={<NotFound />} />
+  </Routes>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -34,23 +55,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            {/* Jerry Chat - default landing */}
-            <Route path="/" element={<ChatLayout />} />
-            <Route path="/chat" element={<ChatLayout />} />
-
-            {/* Classic Dashboard */}
-            <Route path="/classic" element={<AppLayout />}>
-              <Route index element={<Navigate to="/classic/overview" replace />} />
-              <Route path="overview" element={<Overview />} />
-              <Route path="pipeline" element={<PipelineCanvas />} />
-              <Route path="leads" element={<Leads />} />
-              <Route path="campaigns" element={<Campaigns onNavigateToSettings={() => {}} />} />
-              <Route path="integrations" element={<Integrations />} />
-              <Route path="settings" element={<Settings />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppRoutes />
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>

@@ -10,15 +10,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import type { ActiveWorkflow, ActiveJob } from '@/hooks/useChat';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-const getHeaders = () => ({
-  'Content-Type': 'application/json',
-  ...(import.meta.env.VITE_API_KEY
-    ? { Authorization: `Bearer ${import.meta.env.VITE_API_KEY}` }
-    : {}),
-});
+import { api } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 interface BackendJob {
   id: string;
@@ -83,7 +76,7 @@ const StatusIcon = ({ status }: { status: string }) => {
     case 'failed':
       return <XCircle className="w-3.5 h-3.5 text-red-400" />;
     default:
-      return <Clock className="w-3.5 h-3.5 text-[#666666]" />;
+      return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
   }
 };
 
@@ -100,26 +93,29 @@ const statusColors: Record<string, string> = {
 export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: JobsPanelProps) => {
   const [backendJobs, setBackendJobs] = useState<BackendJob[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [jobsError, setJobsError] = useState(false);
+  const { toast } = useToast();
 
   const fetchJobs = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const [statusRes, historyRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/v1/jobs/status`, { headers: getHeaders() }),
-        fetch(`${API_BASE_URL}/api/v1/jobs/history?limit=20`, { headers: getHeaders() }),
+      const [statusData, historyData] = await Promise.all([
+        api.jobs.status(),
+        api.jobs.history({ limit: 20 }),
       ]);
-      const statusData = await statusRes.json();
-      const historyData = await historyRes.json();
 
-      const running: BackendJob[] = statusData.success ? (statusData.data?.runningJobs || []) : [];
-      const history: BackendJob[] = historyData.success ? (historyData.data?.history || []) : [];
+      const running: BackendJob[] = statusData.data?.runningJobs || [];
+      const history: BackendJob[] = historyData.data?.history || [];
 
       // Merge: running first, then recent history (deduplicated)
       const runningIds = new Set(running.map(j => j.id));
       const merged = [...running, ...history.filter(j => !runningIds.has(j.id))];
       setBackendJobs(merged);
+      setJobsError(false);
     } catch (error) {
       console.error('Failed to fetch jobs:', error);
+      toast({ title: 'Failed to load jobs', variant: 'destructive' });
+      setJobsError(true);
     } finally {
       setIsRefreshing(false);
     }
@@ -152,14 +148,14 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
   const completedWorkflows = activeWorkflows.filter(w => w.status === 'completed' || w.status === 'failed' || w.status === 'cancelled');
 
   return (
-    <div className="flex flex-col h-full bg-[#000000] text-[#ececec]">
+    <div className="flex flex-col h-full bg-black text-foreground">
       {/* Header */}
       <div className="px-3 pt-3 pb-2 flex items-center justify-between">
-        <span className="text-xs font-medium text-[#9b9b9b] uppercase tracking-wider">Jobs & Workflows</span>
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Jobs & Workflows</span>
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 text-[#9b9b9b] hover:text-[#ececec] hover:bg-[#202020]"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-accent"
           onClick={fetchJobs}
           disabled={isRefreshing}
         >
@@ -172,26 +168,26 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
           {/* Active Workflows from chat */}
           {runningWorkflows.length > 0 && (
             <>
-              <div className="text-[10px] font-semibold text-[#666666] uppercase tracking-wider pt-2 pb-1">
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-2 pb-1">
                 Active Workflows
               </div>
               {runningWorkflows.map(wf => (
                 <div
                   key={wf.workflowId}
-                  className="p-2.5 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] space-y-2"
+                  className="p-2.5 rounded-lg bg-black/95 border border-border space-y-2"
                 >
                   <div className="flex items-center gap-2">
                     <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin shrink-0" />
                     <span className="text-[12px] font-medium truncate flex-1">{wf.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1 bg-[#1a1a1a] rounded-full overflow-hidden">
+                    <div className="flex-1 h-1 bg-card rounded-full overflow-hidden">
                       <div
                         className="h-full bg-blue-500 rounded-full transition-all"
                         style={{ width: `${wf.totalSteps > 0 ? (wf.completedSteps / wf.totalSteps) * 100 : 0}%` }}
                       />
                     </div>
-                    <span className="text-[10px] text-[#666666] tabular-nums shrink-0">
+                    <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
                       {wf.completedSteps}/{wf.totalSteps}
                     </span>
                   </div>
@@ -202,7 +198,7 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
                           <StatusIcon status={step.status} />
                           <span className={cn(
                             "text-[11px] truncate",
-                            step.status === 'running' ? 'text-[#ececec]' : 'text-[#666666]',
+                            step.status === 'running' ? 'text-foreground' : 'text-muted-foreground',
                             step.status === 'completed' && 'text-emerald-400/70',
                           )}>
                             {step.name}
@@ -219,15 +215,15 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
           {/* Backend Jobs */}
           {backendJobs.length > 0 && (
             <>
-              <div className="text-[10px] font-semibold text-[#666666] uppercase tracking-wider pt-3 pb-1">
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-3 pb-1">
                 Recent Jobs
               </div>
               {backendJobs.map(job => (
                 <div
                   key={job.id}
-                  className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-[#0a0a0a] transition-colors"
+                  className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-black/95 transition-colors"
                 >
-                  <div className="w-6 h-6 rounded-md bg-[#1a1a1a] flex items-center justify-center shrink-0 text-[#9b9b9b]">
+                  <div className="w-6 h-6 rounded-md bg-card flex items-center justify-center shrink-0 text-muted-foreground">
                     {getJobIcon(job.type, job.metadata)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -236,7 +232,7 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
                     </p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <StatusIcon status={job.status} />
-                      <span className="text-[10px] text-[#666666]">
+                      <span className="text-[10px] text-muted-foreground">
                         {job.startedAt
                           ? formatDistanceToNow(new Date(job.startedAt), { addSuffix: true })
                           : formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
@@ -250,13 +246,13 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
                     )}
                     {job.status === 'PROCESSING' && job.processedRecords !== null && job.totalRecords !== null && (
                       <div className="flex items-center gap-1.5 mt-1">
-                        <div className="flex-1 h-1 bg-[#1a1a1a] rounded-full overflow-hidden">
+                        <div className="flex-1 h-1 bg-card rounded-full overflow-hidden">
                           <div
                             className="h-full bg-blue-500 rounded-full transition-all"
                             style={{ width: `${job.totalRecords > 0 ? (job.processedRecords / job.totalRecords) * 100 : 0}%` }}
                           />
                         </div>
-                        <span className="text-[10px] text-[#666666] tabular-nums">
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
                           {job.processedRecords}/{job.totalRecords}
                         </span>
                       </div>
@@ -270,22 +266,22 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
           {/* Socket-tracked jobs (permit searches, etc.) */}
           {activeJobs.length > 0 && (
             <>
-              <div className="text-[10px] font-semibold text-[#666666] uppercase tracking-wider pt-3 pb-1">
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-3 pb-1">
                 Chat Jobs
               </div>
               {activeJobs.map(job => (
                 <div
                   key={job.jobId}
-                  className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-[#0a0a0a] transition-colors"
+                  className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-black/95 transition-colors"
                 >
-                  <div className="w-6 h-6 rounded-md bg-[#1a1a1a] flex items-center justify-center shrink-0 text-[#9b9b9b]">
+                  <div className="w-6 h-6 rounded-md bg-card flex items-center justify-center shrink-0 text-muted-foreground">
                     <SearchIcon className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[12px] font-medium truncate">{job.jobType || 'Job'}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <StatusIcon status={job.status} />
-                      <span className="text-[10px] text-[#666666]">
+                      <span className="text-[10px] text-muted-foreground">
                         {formatDistanceToNow(new Date(job.startedAt), { addSuffix: true })}
                       </span>
                     </div>
@@ -298,13 +294,13 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
           {/* Completed workflows */}
           {completedWorkflows.length > 0 && (
             <>
-              <div className="text-[10px] font-semibold text-[#666666] uppercase tracking-wider pt-3 pb-1">
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-3 pb-1">
                 Completed Workflows
               </div>
               {completedWorkflows.map(wf => (
                 <div
                   key={wf.workflowId}
-                  className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-[#0a0a0a] transition-colors"
+                  className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-black/95 transition-colors"
                 >
                   <StatusIcon status={wf.status} />
                   <div className="flex-1 min-w-0">
@@ -324,9 +320,18 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
           {/* Empty state */}
           {backendJobs.length === 0 && activeWorkflows.length === 0 && activeJobs.length === 0 && (
             <div className="text-center py-8">
-              <Zap className="w-5 h-5 text-[#333333] mx-auto mb-2" />
-              <p className="text-xs text-[#666666]">No recent jobs</p>
-              <p className="text-[10px] text-[#444444] mt-0.5">Jobs and workflows will appear here</p>
+              <Zap className="w-5 h-5 text-border mx-auto mb-2" />
+              {jobsError ? (
+                <>
+                  <p className="text-xs text-red-400">Failed to load jobs</p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">Check your connection and try again</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">No recent jobs</p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">Jobs and workflows will appear here</p>
+                </>
+              )}
             </div>
           )}
         </div>

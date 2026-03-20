@@ -4,6 +4,7 @@ import type { ChatMessage } from '@/components/chat/MessageBubble';
 import type { ToolStep } from '@/components/chat/AgentSteps';
 import type { WorkflowStep } from '@/components/chat/WorkflowProgress';
 import { useToast } from '@/hooks/use-toast';
+import { api } from '@/lib/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -57,6 +58,7 @@ interface UseChatReturn {
   isLoading: boolean;
   activeWorkflows: ActiveWorkflow[];
   activeJobs: ActiveJob[];
+  connectionStatus: 'connected' | 'disconnected' | 'reconnecting';
 }
 
 export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
@@ -68,9 +70,11 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [activeWorkflows, setActiveWorkflows] = useState<ActiveWorkflow[]>([]);
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
   const socketRef = useRef<Socket | null>(null);
   const conversationIdRef = useRef(conversationId);
   const sendMessageRef = useRef<(content: string) => void>(() => {});
+  const completedJobIds = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -86,7 +90,20 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     });
 
     socket.on('connect', () => {
+      setConnectionStatus('connected');
       socket.emit('chat:join', conversationId);
+    });
+
+    socket.on('disconnect', () => {
+      setConnectionStatus('disconnected');
+    });
+
+    socket.on('reconnect_attempt', () => {
+      setConnectionStatus('reconnecting');
+    });
+
+    socket.on('reconnect', () => {
+      setConnectionStatus('connected');
     });
 
     socket.on('chat:token', (data: { conversationId: string; token: string }) => {
@@ -373,6 +390,8 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       });
 
       // Auto-notify Jerry about permit search results so the conversation continues
+      if (completedJobIds.current.has(data.jobId)) return;
+      completedJobIds.current.add(data.jobId);
       if (data.jobType?.includes('permit') && data.result) {
         const r = data.result;
         const resultSummary = r.total === 0
@@ -417,6 +436,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       socket.emit('chat:leave', conversationId);
       socket.disconnect();
       socketRef.current = null;
+      setConnectionStatus('disconnected');
     };
   }, [conversationId]);
 
@@ -433,20 +453,13 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
   const loadMessages = async (convId: string) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/v1/chat/conversations/${convId}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(import.meta.env.VITE_API_KEY
-            ? { Authorization: `Bearer ${import.meta.env.VITE_API_KEY}` }
-            : {}),
-        },
-      });
-      const data = await response.json();
+      const data = await api.chat.getConversation(convId);
       if (data.success && data.data?.messages) {
         setMessages(data.data.messages);
       }
     } catch (error) {
       console.error('Failed to load messages:', error);
+      toast({ title: 'Failed to load messages', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -480,20 +493,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     setIsThinking(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/chat/conversations/${convId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(import.meta.env.VITE_API_KEY
-            ? { Authorization: `Bearer ${import.meta.env.VITE_API_KEY}` }
-            : {}),
-        },
-        body: JSON.stringify({ content }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server error (${response.status})`);
-      }
+      await api.chat.sendMessage(convId, content);
     } catch (error) {
       console.error('Failed to send message:', error);
       setIsStreaming(false);
@@ -522,5 +522,6 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     isLoading,
     activeWorkflows,
     activeJobs,
+    connectionStatus,
   };
 }

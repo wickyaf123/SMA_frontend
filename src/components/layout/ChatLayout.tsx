@@ -4,18 +4,11 @@ import { ConversationList } from '../chat/ConversationList';
 import { JobsPanel } from '../chat/JobsPanel';
 import { ChatView } from '../chat/ChatView';
 import { useChat } from '@/hooks/useChat';
-import { Bot, LayoutDashboard, PanelLeftClose, PanelLeft, MessageSquare, Zap } from 'lucide-react';
+import { Bot, LayoutDashboard, PanelLeftClose, PanelLeft, Menu, MessageSquare, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-const getHeaders = () => ({
-  'Content-Type': 'application/json',
-  ...(import.meta.env.VITE_API_KEY
-    ? { Authorization: `Bearer ${import.meta.env.VITE_API_KEY}` }
-    : {}),
-});
+import { api } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 interface Conversation {
   id: string;
@@ -31,7 +24,9 @@ export const ChatLayout = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chats');
+  const { toast } = useToast();
 
   const {
     messages,
@@ -44,22 +39,21 @@ export const ChatLayout = () => {
     isLoading,
     activeWorkflows,
     activeJobs,
+    connectionStatus,
   } = useChat({ conversationId: activeConversationId });
 
   // Load conversations
   const loadConversations = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/chat/conversations`, {
-        headers: getHeaders(),
-      });
-      const data = await response.json();
+      const data = await api.chat.listConversations();
       if (data.success) {
         setConversations(data.data || []);
       }
     } catch (error) {
       console.error('Failed to load conversations:', error);
+      toast({ title: 'Failed to load conversations', variant: 'destructive' });
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     loadConversations();
@@ -68,36 +62,30 @@ export const ChatLayout = () => {
   // Create new conversation
   const handleNewConversation = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/chat/conversations`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ title: 'New Chat' }),
-      });
-      const data = await response.json();
+      const data = await api.chat.createConversation('New Chat');
       if (data.success && data.data) {
         setConversations(prev => [data.data, ...prev]);
         setActiveConversationId(data.data.id);
       }
     } catch (error) {
       console.error('Failed to create conversation:', error);
+      toast({ title: 'Failed to create conversation', variant: 'destructive' });
     }
-  }, []);
+  }, [toast]);
 
   // Delete conversation
   const handleDeleteConversation = useCallback(async (id: string) => {
     try {
-      await fetch(`${API_BASE_URL}/api/v1/chat/conversations/${id}`, {
-        method: 'DELETE',
-        headers: getHeaders(),
-      });
+      await api.chat.deleteConversation(id);
       setConversations(prev => prev.filter(c => c.id !== id));
       if (activeConversationId === id) {
         setActiveConversationId(undefined);
       }
     } catch (error) {
       console.error('Failed to delete conversation:', error);
+      toast({ title: 'Failed to delete conversation', variant: 'destructive' });
     }
-  }, [activeConversationId]);
+  }, [activeConversationId, toast]);
 
   // Ref to queue a message after conversation creation
   const pendingMessageRef = useRef<string | null>(null);
@@ -116,12 +104,7 @@ export const ChatLayout = () => {
   const handleSendMessage = useCallback(async (content: string) => {
     if (!activeConversationId) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/chat/conversations`, {
-          method: 'POST',
-          headers: getHeaders(),
-          body: JSON.stringify({ title: content.substring(0, 50) }),
-        });
-        const data = await response.json();
+        const data = await api.chat.createConversation(content.substring(0, 50));
         if (data.success && data.data) {
           setConversations(prev => [data.data, ...prev]);
           pendingMessageRef.current = content;
@@ -130,11 +113,12 @@ export const ChatLayout = () => {
         }
       } catch (error) {
         console.error('Failed to create conversation:', error);
+        toast({ title: 'Failed to start conversation', variant: 'destructive' });
         return;
       }
     }
     sendMessage(content);
-  }, [activeConversationId, sendMessage]);
+  }, [activeConversationId, sendMessage, toast]);
 
   // Refresh conversations after streaming completes
   useEffect(() => {
@@ -146,12 +130,26 @@ export const ChatLayout = () => {
   const runningCount = activeWorkflows.filter(w => w.status === 'running').length;
 
   return (
-    <div className="flex h-screen bg-[#212121]">
+    <div className="flex h-screen bg-background">
+      {/* Mobile backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={cn(
-          'h-screen bg-[#000000] flex flex-col flex-shrink-0 transition-all duration-300 border-r border-[#202020]',
-          sidebarOpen ? 'w-[260px]' : 'w-[68px] overflow-hidden'
+          'h-screen bg-black flex flex-col flex-shrink-0 border-r border-border',
+          // Mobile: fixed overlay
+          'fixed z-50 transition-transform duration-300 md:relative md:translate-x-0 md:z-auto',
+          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          // Desktop: existing behavior with width transition
+          'md:transition-all md:duration-300',
+          sidebarOpen ? 'md:w-[260px]' : 'md:w-[68px] md:overflow-hidden',
+          'w-[280px] md:w-auto',
         )}
       >
         {/* Brand */}
@@ -160,7 +158,7 @@ export const ChatLayout = () => {
             <div className="w-7 h-7 shrink-0 rounded-md bg-white flex items-center justify-center">
               <Bot className="w-4 h-4 text-black" />
             </div>
-            {sidebarOpen && <h2 className="font-medium text-sm text-[#ececec] whitespace-nowrap">Jerry</h2>}
+            {sidebarOpen && <h2 className="font-medium text-sm text-foreground whitespace-nowrap">Jerry</h2>}
           </div>
         </div>
 
@@ -172,8 +170,8 @@ export const ChatLayout = () => {
               className={cn(
                 'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors',
                 sidebarTab === 'chats'
-                  ? 'bg-[#202020] text-[#ececec]'
-                  : 'text-[#666666] hover:text-[#9b9b9b] hover:bg-[#0a0a0a]'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-black/95'
               )}
             >
               <MessageSquare className="w-3.5 h-3.5" />
@@ -184,8 +182,8 @@ export const ChatLayout = () => {
               className={cn(
                 'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors relative',
                 sidebarTab === 'jobs'
-                  ? 'bg-[#202020] text-[#ececec]'
-                  : 'text-[#666666] hover:text-[#9b9b9b] hover:bg-[#0a0a0a]'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-black/95'
               )}
             >
               <Zap className="w-3.5 h-3.5" />
@@ -203,7 +201,7 @@ export const ChatLayout = () => {
               onClick={() => setSidebarTab('chats')}
               className={cn(
                 'w-10 h-8 rounded-lg flex items-center justify-center transition-colors',
-                sidebarTab === 'chats' ? 'bg-[#202020] text-[#ececec]' : 'text-[#666666] hover:text-[#9b9b9b]'
+                sidebarTab === 'chats' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
               title="Chats"
             >
@@ -213,7 +211,7 @@ export const ChatLayout = () => {
               onClick={() => setSidebarTab('jobs')}
               className={cn(
                 'w-10 h-8 rounded-lg flex items-center justify-center transition-colors relative',
-                sidebarTab === 'jobs' ? 'bg-[#202020] text-[#ececec]' : 'text-[#666666] hover:text-[#9b9b9b]'
+                sidebarTab === 'jobs' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
               title="Jobs"
             >
@@ -228,13 +226,19 @@ export const ChatLayout = () => {
         )}
 
         {/* Tab content */}
-        <div className="flex-1 overflow-hidden border-b border-[#202020]">
+        <div className="flex-1 overflow-hidden border-b border-border">
           {sidebarTab === 'chats' ? (
             <ConversationList
               conversations={conversations}
               activeConversationId={activeConversationId}
-              onSelectConversation={setActiveConversationId}
-              onNewConversation={handleNewConversation}
+              onSelectConversation={(id) => {
+                setActiveConversationId(id);
+                setMobileSidebarOpen(false);
+              }}
+              onNewConversation={() => {
+                handleNewConversation();
+                setMobileSidebarOpen(false);
+              }}
               onDeleteConversation={handleDeleteConversation}
               sidebarOpen={sidebarOpen}
             />
@@ -247,11 +251,11 @@ export const ChatLayout = () => {
           )}
         </div>
 
-        {/* Classic mode toggle */}
-        <div className="p-3">
+        {/* Bottom actions */}
+        <div className="p-3 space-y-1">
           <Link to="/classic/overview">
             <Button variant="ghost" size="sm" className={cn(
-              "w-full gap-2 h-10 bg-transparent hover:bg-[#202020] text-[#ececec] transition-colors",
+              "w-full gap-2 h-10 bg-transparent hover:bg-accent text-foreground transition-colors",
               sidebarOpen ? "justify-start px-3" : "justify-center px-0"
             )}>
               <LayoutDashboard className="w-4 h-4 shrink-0" />
@@ -262,21 +266,41 @@ export const ChatLayout = () => {
       </aside>
 
       {/* Main area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#212121] h-screen">
+      <div className="flex-1 flex flex-col min-w-0 bg-background h-screen">
         {/* Top bar */}
-        <div className="h-14 flex items-center px-4 gap-2 flex-shrink-0 border-b border-[#2a2a2a]">
+        <div className="h-14 flex items-center px-4 gap-2 flex-shrink-0 border-b border-border">
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-[#ececec] hover:bg-[#2f2f2f] hover:text-white"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="h-8 w-8 text-foreground hover:bg-muted hover:text-white"
+            onClick={() => {
+              // Mobile: toggle overlay sidebar
+              if (window.innerWidth < 768) {
+                setMobileSidebarOpen(!mobileSidebarOpen);
+              } else {
+                setSidebarOpen(!sidebarOpen);
+              }
+            }}
           >
-            {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+            {/* Mobile: always show hamburger menu icon */}
+            <Menu className="w-4 h-4 md:hidden" />
+            {/* Desktop: show panel collapse/expand icon */}
+            {sidebarOpen
+              ? <PanelLeftClose className="w-4 h-4 hidden md:block" />
+              : <PanelLeft className="w-4 h-4 hidden md:block" />
+            }
           </Button>
           <div className="flex-1" />
-          <div className="flex items-center gap-1.5 text-xs text-[#ececec]/70 font-medium">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-            Jerry Online
+          <div className="flex items-center gap-1.5 text-xs text-foreground/70 font-medium">
+            <div className={cn(
+              'w-2 h-2 rounded-full',
+              connectionStatus === 'connected' && 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]',
+              connectionStatus === 'reconnecting' && 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)] animate-pulse',
+              connectionStatus === 'disconnected' && 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]',
+            )} />
+            {connectionStatus === 'connected' && 'Jerry Online'}
+            {connectionStatus === 'reconnecting' && 'Reconnecting...'}
+            {connectionStatus === 'disconnected' && (activeConversationId ? 'Jerry Offline' : 'Jerry')}
           </div>
         </div>
 

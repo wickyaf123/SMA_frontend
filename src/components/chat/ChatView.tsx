@@ -6,6 +6,8 @@ import type { ActiveWorkflow, ActiveJob } from '@/hooks/useChat';
 import { Send, Square, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { api } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChatViewProps {
   messages: ChatMessage[];
@@ -36,41 +38,37 @@ export const ChatView = ({
 }: ChatViewProps) => {
   const [input, setInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    const formData = new FormData();
-    formData.append('file', file);
+    if (!file.name.endsWith('.csv')) {
+      toast({ title: 'Invalid file type', description: 'Only CSV files are supported.', variant: 'destructive' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'File too large', description: 'Maximum file size is 5MB.', variant: 'destructive' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/v1/chat/conversations/${conversationId}/upload`,
-        {
-          method: 'POST',
-          headers: {
-            ...(import.meta.env.VITE_API_KEY
-              ? { Authorization: `Bearer ${import.meta.env.VITE_API_KEY}` }
-              : {}),
-          },
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
+      const data = await api.chat.uploadFile(conversationId!, file);
       if (data.success && data.data) {
         const { rowCount, columns } = data.data;
         onSendMessage(`SYSTEM_EVENT:file_uploaded:User uploaded a CSV file "${file.name}" with ${rowCount} rows. Columns: ${columns.join(', ')}. Use the uploaded data to help the user.`);
+        toast({ title: 'File uploaded', description: `${file.name} uploaded successfully.` });
       }
     } catch (error) {
-      console.error('File upload failed:', error);
+      toast({ title: 'Upload failed', description: 'Could not upload the file. Please try again.', variant: 'destructive' });
     }
 
     // Reset the input
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [conversationId, onSendMessage]);
+  }, [conversationId, onSendMessage, toast]);
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
@@ -100,15 +98,15 @@ export const ChatView = ({
         isLoading={isLoading}
       />
 
-      <div className="bg-transparent px-4 pb-4 pt-2">
+      <div className="bg-transparent px-4 pb-[env(safe-area-inset-bottom,16px)] pt-2">
         <div className="max-w-3xl mx-auto">
-          <div className="relative flex flex-col bg-[#2f2f2f] rounded-3xl p-1.5 focus-within:bg-[#333333] transition-colors border border-transparent focus-within:border-[#444444]">
+          <div className="relative flex flex-col bg-muted rounded-3xl p-1.5 focus-within:bg-muted transition-colors border border-transparent focus-within:border-border/80">
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask Jerry anything..."
-              className="min-h-[52px] max-h-[200px] resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-[#ececec] placeholder:text-[#ececec]/50 px-4 py-3.5"
+              className="min-h-[52px] max-h-[200px] resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-foreground placeholder:text-muted-foreground px-4 py-3.5"
               rows={1}
               disabled={isLoading}
             />
@@ -126,7 +124,7 @@ export const ChatView = ({
                   disabled={isStreaming || isLoading || !conversationId}
                   size="icon"
                   variant="ghost"
-                  className="shrink-0 h-8 w-8 rounded-full text-[#ececec]/60 hover:text-[#ececec] hover:bg-[#404040] disabled:opacity-30 transition-colors"
+                  className="shrink-0 h-8 w-8 rounded-full text-foreground/60 hover:text-foreground hover:bg-accent disabled:opacity-30 transition-colors"
                 >
                   <Paperclip className="w-4 h-4" />
                 </Button>
@@ -136,7 +134,7 @@ export const ChatView = ({
                   onClick={isStreaming ? onCancelStream : handleSend}
                   disabled={isStreaming ? false : (!input.trim() || isLoading)}
                   size="icon"
-                  className="shrink-0 h-8 w-8 rounded-full bg-[#ececec] text-black hover:bg-white disabled:bg-[#ececec]/20 disabled:text-[#ececec]/40 transition-colors"
+                  className="shrink-0 h-8 w-8 rounded-full bg-foreground text-black hover:bg-white disabled:bg-foreground/20 disabled:text-foreground/40 transition-colors"
                 >
                   {isStreaming ? (
                     <Square className="w-3.5 h-3.5" />
@@ -147,7 +145,7 @@ export const ChatView = ({
               </div>
             </div>
           </div>
-          <p className="text-[11px] text-[#ececec]/40 text-center mt-3 mb-1">
+          <p className="text-[11px] text-muted-foreground/60 text-center mt-3 mb-1">
             Jerry can create contacts, manage campaigns, trigger jobs, search permits, and more.
           </p>
         </div>

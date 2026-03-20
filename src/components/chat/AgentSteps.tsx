@@ -120,7 +120,7 @@ const StepItem = ({ step }: { step: ToolStep }) => {
     <div className="group">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2.5 w-full text-left py-1.5 px-2 rounded-md hover:bg-[#2f2f2f] transition-colors"
+        className="flex items-center gap-2.5 w-full text-left py-1.5 px-2 rounded-md hover:bg-muted transition-colors"
       >
         {step.status === 'running' ? (
           <Loader2 className={cn('w-4 h-4 animate-spin shrink-0', meta.color)} />
@@ -129,34 +129,34 @@ const StepItem = ({ step }: { step: ToolStep }) => {
             <span className="text-red-500 text-[10px] font-bold">!</span>
           </div>
         ) : (
-          <CheckCircle2 className="w-4 h-4 text-[#ececec]/40 shrink-0" />
+          <CheckCircle2 className="w-4 h-4 text-foreground/40 shrink-0" />
         )}
 
-        <Icon className={cn('w-3.5 h-3.5 shrink-0', step.status === 'done' ? 'text-[#ececec]/40' : meta.color)} />
+        <Icon className={cn('w-3.5 h-3.5 shrink-0', step.status === 'done' ? 'text-foreground/40' : meta.color)} />
 
         <span className={cn(
           'text-[13px] font-medium flex-1 truncate',
-          step.status === 'running' ? 'text-[#ececec]' : 'text-[#ececec]/60'
+          step.status === 'running' ? 'text-foreground' : 'text-foreground/60'
         )}>
           {meta.label}
         </span>
 
         {duration !== null && (
-          <span className="text-[11px] text-[#ececec]/40 tabular-nums shrink-0">
+          <span className="text-[11px] text-foreground/40 tabular-nums shrink-0">
             {formatDuration(duration)}
           </span>
         )}
 
         {step.input && Object.keys(step.input).length > 0 && (
           expanded
-            ? <ChevronDown className="w-3.5 h-3.5 text-[#ececec]/40 shrink-0" />
-            : <ChevronRight className="w-3.5 h-3.5 text-[#ececec]/40 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            ? <ChevronDown className="w-3.5 h-3.5 text-foreground/40 shrink-0" />
+            : <ChevronRight className="w-3.5 h-3.5 text-foreground/40 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         )}
       </button>
 
       {expanded && inputSummary && (
-        <div className="ml-9 mt-0.5 mb-1 px-3 py-2 bg-[#2f2f2f] rounded-md border border-[#383838]">
-          <p className="text-[12px] text-[#ececec]/70 font-mono leading-relaxed break-all">
+        <div className="ml-9 mt-0.5 mb-1 px-3 py-2 bg-muted rounded-md border border-border">
+          <p className="text-[12px] text-foreground/70 font-mono leading-relaxed break-all">
             {inputSummary}
           </p>
         </div>
@@ -178,11 +178,11 @@ export const AgentSteps = ({ steps, isThinking }: AgentStepsProps) => {
         {isThinking && steps.length === 0 && (
           <div className="flex items-center gap-2 py-0.5">
             <div className="flex gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#ececec]/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-1.5 h-1.5 rounded-full bg-[#ececec]/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-1.5 h-1.5 rounded-full bg-[#ececec]/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="w-1.5 h-1.5 rounded-full bg-foreground/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-1.5 h-1.5 rounded-full bg-foreground/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-1.5 h-1.5 rounded-full bg-foreground/60 animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
-            <span className="text-sm text-[#ececec]/60 ml-2">Jerry is thinking...</span>
+            <span className="text-sm text-foreground/60 ml-2">Jerry is thinking...</span>
           </div>
         )}
 

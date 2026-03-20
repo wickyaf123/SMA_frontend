@@ -435,6 +435,7 @@ export const Leads = () => {
       return filtered.map(c => c.id);
     } catch (error) {
       console.error('Failed to fetch all contact IDs:', error);
+      toast({ title: "Failed to fetch contacts", description: "Could not retrieve all contacts for this operation.", variant: "destructive" });
       return [];
     }
   };
@@ -502,6 +503,7 @@ export const Leads = () => {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Export failed:", err);
+      toast({ title: "Export failed", description: "Could not export contacts. Please try again.", variant: "destructive" });
     }
   };
 
@@ -2103,10 +2105,23 @@ export const Leads = () => {
                 <tr
                     key={contact.id}
                   className={cn(
-                    "border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors",
+                    "border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer",
                       selectedIds.has(contact.id) && "bg-primary/5",
                       contact.hasReplied && "border-l-2 border-l-node-reply"
                   )}
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    const td = target.closest('td');
+                    if (!td) return;
+                    const tr = td.parentElement;
+                    if (!tr) return;
+                    const cells = Array.from(tr.children);
+                    const cellIndex = cells.indexOf(td);
+                    // Skip first cell (checkbox) and last cell (dropdown menu)
+                    if (cellIndex === 0 || cellIndex === cells.length - 1) return;
+                    setSelectedContact(contact);
+                    setIsDetailOpen(true);
+                  }}
                 >
                   <td className="p-4">
                     <Checkbox
