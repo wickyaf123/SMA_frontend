@@ -822,6 +822,41 @@ const PermitRoutingCard = () => {
               />
             </div>
 
+            <div className="space-y-3 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="ghlEmailReplyWorkflowId">GHL Email Reply Workflow ID</Label>
+                <Input
+                  id="ghlEmailReplyWorkflowId"
+                  placeholder="Enter GHL workflow ID for email replies..."
+                  defaultValue={permitRouting?.permitGhlEmailReplyWorkflowId || ''}
+                  onBlur={(e) => {
+                    const val = e.target.value.trim();
+                    if (val !== (permitRouting?.permitGhlEmailReplyWorkflowId || '')) {
+                      updatePermitRouting.mutate({ permitGhlEmailReplyWorkflowId: val || null });
+                    }
+                  }}
+                  disabled={updatePermitRouting.isPending}
+                />
+                <p className="text-xs text-muted-foreground">Email replies will enroll the contact in this GHL workflow</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ghlSmsReplyWorkflowId">GHL SMS Reply Workflow ID</Label>
+                <Input
+                  id="ghlSmsReplyWorkflowId"
+                  placeholder="Enter GHL workflow ID for SMS replies..."
+                  defaultValue={permitRouting?.permitGhlSmsReplyWorkflowId || ''}
+                  onBlur={(e) => {
+                    const val = e.target.value.trim();
+                    if (val !== (permitRouting?.permitGhlSmsReplyWorkflowId || '')) {
+                      updatePermitRouting.mutate({ permitGhlSmsReplyWorkflowId: val || null });
+                    }
+                  }}
+                  disabled={updatePermitRouting.isPending}
+                />
+                <p className="text-xs text-muted-foreground">SMS replies will enroll the contact in this GHL workflow</p>
+              </div>
+            </div>
+
             <div className="p-4 bg-info/10 border border-info/20 rounded-lg">
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-info mt-0.5" />

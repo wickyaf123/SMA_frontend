@@ -61,8 +61,8 @@ export const Sidebar = () => {
             <Zap className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-semibold text-sm text-foreground truncate">OutreachPro</h2>
-            <p className="text-[10px] text-muted-foreground font-medium truncate uppercase tracking-wider">Acme Corp Workspace</p>
+            <h2 className="font-semibold text-sm text-foreground truncate">PermitScraper</h2>
+            <p className="text-[10px] text-muted-foreground font-medium truncate uppercase tracking-wider">Workspace</p>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         </div>

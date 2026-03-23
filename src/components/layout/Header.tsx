@@ -25,7 +25,7 @@ export const Header = ({ title, subtitle, isWebSocketConnected }: HeaderProps) =
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden sm:block">
-                <BreadcrumbLink href="#" className="text-xs text-muted-foreground/70 hover:text-foreground transition-colors">Acme Corp</BreadcrumbLink>
+                <BreadcrumbLink href="#" className="text-xs text-muted-foreground/70 hover:text-foreground transition-colors">PermitScraper.ai</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden sm:block" />
               <BreadcrumbItem>
