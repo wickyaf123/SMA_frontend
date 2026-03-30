@@ -40,6 +40,8 @@ export const ChatLayout = () => {
     activeWorkflows,
     activeJobs,
     connectionStatus,
+    pauseJob,
+    resumeJob,
   } = useChat({ conversationId: activeConversationId });
 
   // Load conversations
@@ -317,6 +319,8 @@ export const ChatLayout = () => {
           activeWorkflows={activeWorkflows}
           activeJobs={activeJobs}
           conversationId={activeConversationId}
+          onPauseJob={pauseJob}
+          onResumeJob={resumeJob}
         />
       </div>
     </div>

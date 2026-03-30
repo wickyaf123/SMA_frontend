@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
-import { 
-  Search, 
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
+import {
+  Search,
   Filter, 
   Download, 
   Trash2, 
@@ -130,11 +131,14 @@ const defaultColumnVisibility: Record<ColumnKey, boolean> = {
 type ViewMode = "contractors" | "homeowners" | "connections";
 
 export const Leads = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkContactId = useRef(searchParams.get('contactId'));
+
   // View mode toggle
   const [viewMode, setViewMode] = useState<ViewMode>("contractors");
 
-  // UI State
-  const [search, setSearch] = useState("");
+  // UI State — initialize search from URL param if present
+  const [search, setSearch] = useState(searchParams.get('search') || "");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [validationFilter, setValidationFilter] = useState<string>("all");
@@ -257,6 +261,19 @@ export const Leads = () => {
   const contacts = contactsData?.data || [];
   const pagination = contactsData?.pagination;
   const campaigns = campaignsData?.data || [];
+
+  // Deep-link: auto-open contact detail when navigated with ?contactId=
+  useEffect(() => {
+    if (!deepLinkContactId.current || contacts.length === 0) return;
+    const target = contacts.find(c => c.id === deepLinkContactId.current);
+    if (target) {
+      setSelectedContact(target);
+      setIsDetailOpen(true);
+      deepLinkContactId.current = null;
+      // Clean URL params after consuming
+      setSearchParams({}, { replace: true });
+    }
+  }, [contacts, setSearchParams]);
 
   // Filter by source and validation (client-side)
   const filteredContacts = useMemo(() => {

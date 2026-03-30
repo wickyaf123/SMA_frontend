@@ -17,6 +17,8 @@ interface MessageListProps {
   activeWorkflows?: ActiveWorkflow[];
   activeJobs?: ActiveJob[];
   isLoading?: boolean;
+  onPauseJob?: (jobId: string) => void;
+  onResumeJob?: (jobId: string) => void;
 }
 
 const quickActions = [
@@ -68,6 +70,8 @@ export const MessageList = ({
   activeWorkflows = [],
   activeJobs = [],
   isLoading,
+  onPauseJob,
+  onResumeJob,
 }: MessageListProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -236,7 +240,12 @@ export const MessageList = ({
 
           {/* Active job notification cards */}
           {activeJobs.length > 0 && activeJobs.map((job) => (
-            <JobNotificationCard key={job.jobId} job={job} />
+            <JobNotificationCard
+              key={job.jobId}
+              job={job}
+              onPause={onPauseJob}
+              onResume={onResumeJob}
+            />
           ))}
 
           {/* Streaming message */}

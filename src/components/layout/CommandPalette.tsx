@@ -51,42 +51,42 @@ export const CommandPalette = () => {
             </Command.Empty>
             <Command.Group heading="Navigation" className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
               <Command.Item 
-                onSelect={() => runCommand(() => navigate("/overview"))}
+                onSelect={() => runCommand(() => navigate("/classic/overview"))}
                 className="relative flex cursor-default select-none items-center rounded-sm px-2 py-2 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 mt-1"
               >
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 <span>Overview</span>
               </Command.Item>
               <Command.Item 
-                onSelect={() => runCommand(() => navigate("/pipeline"))}
+                onSelect={() => runCommand(() => navigate("/classic/pipeline"))}
                 className="relative flex cursor-default select-none items-center rounded-sm px-2 py-2 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 mt-1"
               >
                 <GitBranch className="mr-2 h-4 w-4" />
                 <span>Pipeline</span>
               </Command.Item>
               <Command.Item 
-                onSelect={() => runCommand(() => navigate("/leads"))}
+                onSelect={() => runCommand(() => navigate("/classic/leads"))}
                 className="relative flex cursor-default select-none items-center rounded-sm px-2 py-2 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 mt-1"
               >
                 <Users className="mr-2 h-4 w-4" />
                 <span>Leads</span>
               </Command.Item>
               <Command.Item 
-                onSelect={() => runCommand(() => navigate("/campaigns"))}
+                onSelect={() => runCommand(() => navigate("/classic/campaigns"))}
                 className="relative flex cursor-default select-none items-center rounded-sm px-2 py-2 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 mt-1"
               >
                 <Send className="mr-2 h-4 w-4" />
                 <span>Outreach Campaigns</span>
               </Command.Item>
               <Command.Item 
-                onSelect={() => runCommand(() => navigate("/integrations"))}
+                onSelect={() => runCommand(() => navigate("/classic/integrations"))}
                 className="relative flex cursor-default select-none items-center rounded-sm px-2 py-2 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 mt-1"
               >
                 <Plug2 className="mr-2 h-4 w-4" />
                 <span>Integrations</span>
               </Command.Item>
               <Command.Item 
-                onSelect={() => runCommand(() => navigate("/settings"))}
+                onSelect={() => runCommand(() => navigate("/classic/settings"))}
                 className="relative flex cursor-default select-none items-center rounded-sm px-2 py-2 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 mt-1"
               >
                 <Settings className="mr-2 h-4 w-4" />

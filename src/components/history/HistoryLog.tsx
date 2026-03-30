@@ -28,7 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const ACTION_TYPES = [
-  { value: "", label: "All Actions" },
+  { value: "all", label: "All Actions" },
   { value: "contact_created", label: "Contact Created" },
   { value: "contact_updated", label: "Contact Updated" },
   { value: "enrolled", label: "Enrolled" },
@@ -42,7 +42,7 @@ const ACTION_TYPES = [
 ];
 
 const CHANNEL_FILTERS = [
-  { value: "", label: "All Channels" },
+  { value: "all", label: "All Channels" },
   { value: "EMAIL", label: "Email" },
   { value: "SMS", label: "SMS" },
   { value: "LINKEDIN", label: "LinkedIn" },
@@ -88,15 +88,15 @@ function formatTimestamp(dateStr: string): string {
 
 export const HistoryLog = () => {
   const [page, setPage] = useState(1);
-  const [actionFilter, setActionFilter] = useState("");
-  const [channelFilter, setChannelFilter] = useState("");
+  const [actionFilter, setActionFilter] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
   const limit = 30;
 
   const { data, isLoading, refetch } = useActivity({
     page,
     limit,
-    action: actionFilter || undefined,
-    channel: channelFilter || undefined,
+    action: actionFilter === "all" ? undefined : actionFilter,
+    channel: channelFilter === "all" ? undefined : channelFilter,
   });
 
   const logs = data?.data?.data || data?.data || [];

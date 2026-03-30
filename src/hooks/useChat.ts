@@ -12,10 +12,23 @@ interface UseChatOptions {
   conversationId?: string;
 }
 
+export interface JobProgressData {
+  phase: 'searching' | 'importing' | 'enriching' | 'building_sheet';
+  imported: number;
+  duplicates: number;
+  filtered: number;
+  totalContractors?: number;
+  contractorIndex?: number;
+  message?: string;
+  permitType?: string;
+  city?: string;
+}
+
 export interface ActiveJob {
   jobId: string;
   jobType: string;
-  status: 'started' | 'completed' | 'failed';
+  status: 'started' | 'progress' | 'completed' | 'failed' | 'paused' | 'cancelled';
+  progress?: JobProgressData;
   result?: {
     sheetUrl?: string;
     total?: number;
@@ -24,6 +37,7 @@ export interface ActiveJob {
     permitType?: string;
     city?: string;
     contacts?: Array<{
+      id?: string;
       name: string;
       company: string;
       email: string;
@@ -55,10 +69,13 @@ interface UseChatReturn {
   isThinking: boolean;
   sendMessage: (content: string) => Promise<void>;
   cancelStream: () => void;
+  cancelJob: (jobId: string) => void;
   isLoading: boolean;
   activeWorkflows: ActiveWorkflow[];
   activeJobs: ActiveJob[];
   connectionStatus: 'connected' | 'disconnected' | 'reconnecting';
+  pauseJob: (jobId: string) => void;
+  resumeJob: (jobId: string) => void;
 }
 
 export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
@@ -73,6 +90,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
   const socketRef = useRef<Socket | null>(null);
   const conversationIdRef = useRef(conversationId);
+  const isStreamingRef = useRef(false);
   const sendMessageRef = useRef<(content: string) => void>(() => {});
   const completedJobIds = useRef<Set<string>>(new Set());
   const { toast } = useToast();
@@ -80,6 +98,10 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
   useEffect(() => {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
+
+  useEffect(() => {
+    isStreamingRef.current = isStreaming;
+  }, [isStreaming]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -160,7 +182,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
         setIsThinking(false);
         setToolSteps([]);
         // Reload replaces temp messages with real server data
-        await loadMessages(conversationId);
+        await loadMessages(conversationId, true);
       }
     });
 
@@ -363,16 +385,33 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       });
     });
 
+    socket.on('job:progress', (data: {
+      jobId: string;
+      jobType: string;
+      status: string;
+      result?: JobProgressData;
+    }) => {
+      setActiveJobs(prev => prev.map(job =>
+        job.jobId === data.jobId
+          ? {
+              ...job,
+              status: job.status === 'paused' ? 'paused' as const : 'progress' as const,
+              progress: data.result,
+            }
+          : job
+      ));
+    });
+
     socket.on('job:completed', (data: {
       jobId: string;
       jobType: string;
       status: string;
+      isReplay?: boolean;
       result?: any;
     }) => {
       setActiveJobs(prev => {
         const exists = prev.some(j => j.jobId === data.jobId);
         if (!exists) {
-          // Job started before this conversation was open — add it as completed
           return [...prev, {
             jobId: data.jobId,
             jobType: data.jobType,
@@ -389,7 +428,12 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
         );
       });
 
-      // Auto-notify Jerry about permit search results so the conversation continues
+      // Don't auto-notify Jerry for replayed events (page refresh / reconnect)
+      if (data.isReplay) {
+        completedJobIds.current.add(data.jobId);
+        return;
+      }
+
       if (completedJobIds.current.has(data.jobId)) return;
       completedJobIds.current.add(data.jobId);
       if (data.jobType?.includes('permit') && data.result) {
@@ -397,7 +441,6 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
         const resultSummary = r.total === 0
           ? `SYSTEM_EVENT:job_completed:The permit search for ${r.permitType || 'permits'} in ${r.city || 'the specified area'} completed with 0 results found. No contractors matched. Please suggest alternatives to the user.`
           : `SYSTEM_EVENT:job_completed:The permit search completed. Found ${r.total} contractors (${r.enriched || 0} enriched, ${r.incomplete || 0} incomplete) for ${r.permitType || 'permits'} in ${r.city || 'the area'}.${r.sheetUrl ? ` Google Sheet: ${r.sheetUrl}` : ''} Please summarize the results and suggest next steps.`;
-        // Use a small delay to avoid race with the streaming state reset
         setTimeout(() => {
           sendMessageRef.current(resultSummary);
         }, 1000);
@@ -409,25 +452,45 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       jobType: string;
       status: string;
       error?: string;
+      result?: any;
     }) => {
+      const isCancelled = data.status === 'cancelled';
+      const jobStatus = isCancelled ? 'cancelled' as const : 'failed' as const;
       setActiveJobs(prev => {
         const exists = prev.some(j => j.jobId === data.jobId);
         if (!exists) {
           return [...prev, {
             jobId: data.jobId,
             jobType: data.jobType,
-            status: 'failed' as const,
+            status: jobStatus,
             error: data.error,
+            result: data.result,
             startedAt: new Date().toISOString(),
             completedAt: new Date().toISOString(),
           }];
         }
         return prev.map(job =>
           job.jobId === data.jobId
-            ? { ...job, status: 'failed' as const, error: data.error, completedAt: new Date().toISOString() }
+            ? { ...job, status: jobStatus, error: data.error, result: data.result ?? job.result, completedAt: new Date().toISOString() }
             : job
         );
       });
+    });
+
+    socket.on('job:paused', (data: { jobId: string }) => {
+      setActiveJobs(prev => prev.map(job =>
+        job.jobId === data.jobId
+          ? { ...job, status: 'paused' as const }
+          : job
+      ));
+    });
+
+    socket.on('job:resumed', (data: { jobId: string }) => {
+      setActiveJobs(prev => prev.map(job =>
+        job.jobId === data.jobId
+          ? { ...job, status: 'progress' as const }
+          : job
+      ));
     });
 
     socketRef.current = socket;
@@ -450,11 +513,14 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     }
   }, [conversationId]);
 
-  const loadMessages = async (convId: string) => {
+  const loadMessages = async (convId: string, force = false) => {
     try {
       setIsLoading(true);
       const data = await api.chat.getConversation(convId);
       if (data.success && data.data?.messages) {
+        if (!force && isStreamingRef.current) {
+          return;
+        }
         setMessages(data.data.messages);
       }
     } catch (error) {
@@ -469,10 +535,34 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     const convId = conversationIdRef.current;
     if (!convId || !socketRef.current) return;
     socketRef.current.emit('chat:cancel', convId);
+    isStreamingRef.current = false;
     setIsStreaming(false);
     setIsThinking(false);
     setStreamingMessage('');
     setToolSteps([]);
+  }, []);
+
+  const pauseJobFn = useCallback((jobId: string) => {
+    const convId = conversationIdRef.current;
+    if (!convId || !socketRef.current) return;
+    socketRef.current.emit('job:pause', { jobId, conversationId: convId });
+  }, []);
+
+  const resumeJobFn = useCallback((jobId: string) => {
+    const convId = conversationIdRef.current;
+    if (!convId || !socketRef.current) return;
+    socketRef.current.emit('job:resume', { jobId, conversationId: convId });
+  }, []);
+
+  const cancelJobFn = useCallback((jobId: string) => {
+    const convId = conversationIdRef.current;
+    if (!convId || !socketRef.current) return;
+    socketRef.current.emit('job:cancel', { jobId, conversationId: convId });
+    setActiveJobs(prev => prev.map(job =>
+      job.jobId === jobId
+        ? { ...job, status: 'cancelled' as const, completedAt: new Date().toISOString() }
+        : job
+    ));
   }, []);
 
   const sendMessage = useCallback(async (content: string) => {
@@ -486,6 +576,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       content,
       createdAt: new Date().toISOString(),
     };
+    isStreamingRef.current = true;
     setMessages(prev => [...prev, tempUserMessage]);
     setStreamingMessage('');
     setToolSteps([]);
@@ -496,6 +587,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       await api.chat.sendMessage(convId, content);
     } catch (error) {
       console.error('Failed to send message:', error);
+      isStreamingRef.current = false;
       setIsStreaming(false);
       setIsThinking(false);
       setStreamingMessage('');
@@ -519,9 +611,12 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     isThinking,
     sendMessage,
     cancelStream,
+    cancelJob: cancelJobFn,
     isLoading,
     activeWorkflows,
     activeJobs,
     connectionStatus,
+    pauseJob: pauseJobFn,
+    resumeJob: resumeJobFn,
   };
 }

@@ -21,6 +21,8 @@ interface ChatViewProps {
   activeWorkflows?: ActiveWorkflow[];
   activeJobs?: ActiveJob[];
   conversationId?: string;
+  onPauseJob?: (jobId: string) => void;
+  onResumeJob?: (jobId: string) => void;
 }
 
 export const ChatView = ({
@@ -35,6 +37,8 @@ export const ChatView = ({
   activeWorkflows,
   activeJobs,
   conversationId,
+  onPauseJob,
+  onResumeJob,
 }: ChatViewProps) => {
   const [input, setInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,6 +100,8 @@ export const ChatView = ({
         activeWorkflows={activeWorkflows}
         activeJobs={activeJobs}
         isLoading={isLoading}
+        onPauseJob={onPauseJob}
+        onResumeJob={onResumeJob}
       />
 
       <div className="bg-transparent px-4 pb-[env(safe-area-inset-bottom,16px)] pt-2">
