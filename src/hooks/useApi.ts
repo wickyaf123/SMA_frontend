@@ -1393,10 +1393,10 @@ export function useTriggerRealieEnrich() {
     mutationFn: (batchSize?: number) => api.homeowners.triggerEnrich(batchSize),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.homeowners.all });
-      toast({ title: 'Realie enrichment complete', description: `Enriched: ${response.data.enriched}, Not found: ${response.data.notFound}` });
+      toast({ title: 'Property enrichment complete', description: `Enriched: ${response.data.enriched}, Not found: ${response.data.notFound}` });
     },
     onError: (error: ApiError) => {
-      toast({ title: 'Realie enrichment failed', description: error.message, variant: 'destructive' });
+      toast({ title: 'Property enrichment failed', description: error.message, variant: 'destructive' });
     },
   });
 }

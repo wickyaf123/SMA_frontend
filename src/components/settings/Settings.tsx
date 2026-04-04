@@ -36,14 +36,14 @@ const jobDefinitions = [
     id: "homeowner",
     name: "Homeowner Scraper",
     schedule: "0 9 * * *",
-    description: "Pull homeowner data from Shovels residents API and enrich with Realie property data",
+    description: "Pull homeowner data and enrich with property valuation data",
     settingKey: "homeownerJobEnabled" as const,
   },
   {
     id: "enrich",
-    name: "Clay Enrichment",
+    name: "Contact Enrichment",
     schedule: "0 8 * * *",
-    description: "Enrich contacts with email/phone via Clay waterfall",
+    description: "Find email and phone numbers for contacts",
     settingKey: "enrichJobEnabled" as const,
   },
   {
@@ -808,7 +808,7 @@ const PermitRoutingCard = () => {
                 <div>
                   <p className="font-medium">Auto-route incomplete contacts to SMS</p>
                   <p className="text-sm text-muted-foreground">
-                    When Clay returns a contact as INCOMPLETE (no email found), automatically
+                    When enrichment returns a contact as INCOMPLETE (no email found), automatically
                     send them to the GHL SMS workflow if they have a phone number
                   </p>
                 </div>
@@ -863,7 +863,7 @@ const PermitRoutingCard = () => {
                 <div>
                   <p className="font-medium text-foreground">How SMS Fallback Works</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    After Clay enrichment, contacts with a verified email go through the normal email routing.
+                    After contact enrichment, contacts with a verified email go through the normal email routing.
                     Contacts marked INCOMPLETE that have a phone number are automatically enrolled in the
                     GHL SMS workflow as a second outreach lane, ensuring no lead is left behind.
                   </p>
@@ -1345,7 +1345,7 @@ export const Settings = () => {
                     <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                       <div>
                         <p className="font-medium text-sm">Homeowner Scraper</p>
-                        <p className="text-xs text-muted-foreground">Shovels residents + Realie property enrichment</p>
+                        <p className="text-xs text-muted-foreground">Homeowner data + property enrichment</p>
                       </div>
                       <Switch
                         checked={pipelineControls?.homeownerJobEnabled ?? false}
@@ -1358,7 +1358,7 @@ export const Settings = () => {
                     <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
                       <div>
                         <p className="font-medium text-sm">Enrich Job</p>
-                        <p className="text-xs text-muted-foreground">Clay email/phone enrichment</p>
+                        <p className="text-xs text-muted-foreground">Email/phone enrichment</p>
                       </div>
                       <Switch
                         checked={pipelineControls?.enrichJobEnabled ?? false}
@@ -1953,7 +1953,7 @@ export const Settings = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-lg">Homeowner Scraper</CardTitle>
-                    <CardDescription>Pull homeowner data from Shovels residents endpoint and enrich with Realie property data</CardDescription>
+                    <CardDescription>Pull homeowner data and enrich with property valuation data</CardDescription>
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -2037,8 +2037,8 @@ export const Settings = () => {
                       onCheckedChange={(checked) => setHomeownerForm({ ...homeownerForm, realieEnrich: checked })}
                     />
                     <div>
-                      <Label>Realie Property Enrichment</Label>
-                      <p className="text-xs text-muted-foreground">Auto-enrich homeowners with property valuation, tax, and mortgage data from Realie</p>
+                      <Label>Property Enrichment</Label>
+                      <p className="text-xs text-muted-foreground">Auto-enrich homeowners with property valuation, tax, and mortgage data</p>
                     </div>
                   </div>
                 </div>
@@ -2060,7 +2060,7 @@ export const Settings = () => {
                     disabled={triggerRealieEnrich.isPending}
                   >
                     {triggerRealieEnrich.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
-                    Enrich Pending Homeowners with Realie
+                    Enrich Pending Homeowners
                   </Button>
                 </div>
               </CardContent>
@@ -2077,7 +2077,7 @@ export const Settings = () => {
                         <p className="font-medium text-foreground">Shovels Permit Scraper</p>
                         <p className="text-sm text-muted-foreground mt-1">
                           Pulls contractor leads from building permit records. Configure permit types 
-                          and geo IDs above, then Clay handles email/phone enrichment automatically.
+                          and geo IDs above, then email/phone enrichment runs automatically.
                         </p>
                       </div>
                     </div>
@@ -2089,7 +2089,7 @@ export const Settings = () => {
                         <p className="font-medium text-foreground">Homeowner Scraper</p>
                         <p className="text-sm text-muted-foreground mt-1">
                           Pulls residents from Shovels by geo ID. Homeowners get their own table and 
-                          are enriched with property valuation data from Realie API.
+                          are enriched with property valuation data.
                         </p>
                       </div>
                     </div>
@@ -2098,7 +2098,7 @@ export const Settings = () => {
                     <div className="flex items-start gap-3">
                       <Zap className="w-5 h-5 text-emerald-500 mt-0.5" />
                       <div>
-                        <p className="font-medium text-foreground">Clay Enrichment</p>
+                        <p className="font-medium text-foreground">Contact Enrichment</p>
                         <p className="text-sm text-muted-foreground mt-1">
                           Waterfall enrichment finds verified emails and phone numbers for each 
                           contractor. Results are delivered via webhook for real-time processing.

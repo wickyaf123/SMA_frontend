@@ -22,6 +22,7 @@ interface ConversationListProps {
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
   sidebarOpen?: boolean;
+  isCreating?: boolean;
 }
 
 export const ConversationList = ({
@@ -31,6 +32,7 @@ export const ConversationList = ({
   onNewConversation,
   onDeleteConversation,
   sidebarOpen = true,
+  isCreating = false,
 }: ConversationListProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[] | null>(null);
@@ -71,6 +73,7 @@ export const ConversationList = ({
       <div className="px-3 pt-3 pb-2">
         <Button
           onClick={onNewConversation}
+          disabled={isCreating}
           className={cn(
             "w-full gap-2 h-10 bg-transparent hover:bg-accent text-foreground border border-border transition-colors overflow-hidden",
             sidebarOpen ? "justify-start px-3" : "justify-center px-0"

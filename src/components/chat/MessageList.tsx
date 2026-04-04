@@ -5,7 +5,7 @@ import { WorkflowProgress } from './WorkflowProgress';
 import { JobNotificationCard } from './JobNotificationCard';
 import type { ActiveWorkflow, ActiveJob } from '@/hooks/useChat';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, BarChart3, Zap, Sparkles, MapPin, Trash2, Calendar, Flame } from 'lucide-react';
+import { Search, BarChart3, Zap, Home, MapPin, Trash2, Calendar, Flame } from 'lucide-react';
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -29,10 +29,16 @@ const quickActions = [
 
 const workflowPresets = [
   {
-    text: "Run weekly prospecting",
-    description: "New permits · enrich · surface net-new leads",
-    icon: Sparkles,
-    trigger: "Run the weekly prospecting workflow",
+    text: "Find contractors",
+    description: "Search permits by trade · city · recency · batch size",
+    icon: Search,
+    trigger: "I want to find contractors",
+  },
+  {
+    text: "Find homeowners",
+    description: "Trade · intent · recency · location · value · volume",
+    icon: Home,
+    trigger: "I want to find homeowners",
   },
   {
     text: "End of month review",

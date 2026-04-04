@@ -35,6 +35,18 @@ function tryParseJson(raw: string): any | null {
 }
 
 /**
+ * Catch jerry:confirm / jerry:form / jerry:buttons blocks that the LLM emitted
+ * without wrapping in triple-backtick code fences. Wraps them so ReactMarkdown
+ * can hand them to the custom `code` component for interactive rendering.
+ */
+function ensureJerryBlocksFenced(content: string): string {
+  return content.replace(
+    /(?:^|\n)\s*jerry:(confirm|form|buttons)\s*\n(\s*\{[\s\S]*?\n\s*\})/gm,
+    '\n```jerry:$1\n$2\n```',
+  );
+}
+
+/**
  * While streaming, strip any trailing unclosed code fence so we don't flash
  * raw JSON to the user. Returns [visibleContent, hasHiddenBlock].
  */
@@ -205,6 +217,7 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
               options={parsed.options || []}
               onSelect={handleButtonSelect}
               disabled={interactedIds.has(parsed.id)}
+              multiSelect={parsed.multiSelect}
             />
           );
         }
@@ -229,6 +242,7 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
               options={fallbackParsed.options}
               onSelect={handleButtonSelect}
               disabled={interactedIds.has(fallbackParsed.id)}
+              multiSelect={fallbackParsed.multiSelect}
             />
           );
         }
@@ -299,9 +313,11 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
 
   const isUser = message.role === 'user';
 
+  const sanitizedContent = isUser ? message.content : ensureJerryBlocksFenced(message.content);
+
   const [displayContent, hasHiddenBlock] = isStreaming && !isUser
-    ? stripTrailingOpenCodeFence(message.content)
-    : [message.content, false];
+    ? stripTrailingOpenCodeFence(sanitizedContent)
+    : [sanitizedContent, false];
 
   return (
     <div className={cn('group flex gap-4 w-full', isUser ? 'flex-row-reverse' : '')}>

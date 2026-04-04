@@ -5,6 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import NotFound from "./pages/NotFound";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
 import { ChatLayout } from "./components/layout/ChatLayout";
 
@@ -29,12 +33,37 @@ const queryClient = new QueryClient({
 
 const AppRoutes = () => (
   <Routes>
-    {/* Jerry Chat - default landing */}
-    <Route path="/" element={<ChatLayout />} />
-    <Route path="/chat" element={<ChatLayout />} />
+    {/* ── Public auth routes (no layout, no protection) ── */}
+    <Route path="/login" element={<LoginPage />} />
+    <Route path="/register" element={<RegisterPage />} />
 
-    {/* Classic Dashboard */}
-    <Route path="/classic" element={<AppLayout />}>
+    {/* ── Protected: Jerry Chat — default landing ── */}
+    <Route
+      path="/"
+      element={
+        <ProtectedRoute>
+          <ChatLayout />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/chat"
+      element={
+        <ProtectedRoute>
+          <ChatLayout />
+        </ProtectedRoute>
+      }
+    />
+
+    {/* ── Protected: Classic Dashboard ── */}
+    <Route
+      path="/classic"
+      element={
+        <ProtectedRoute>
+          <AppLayout />
+        </ProtectedRoute>
+      }
+    >
       <Route index element={<Navigate to="/classic/overview" replace />} />
       <Route path="overview" element={<Overview />} />
       <Route path="pipeline" element={<PipelineCanvas />} />
@@ -44,6 +73,7 @@ const AppRoutes = () => (
       <Route path="settings" element={<Settings />} />
       <Route path="history" element={<HistoryLog />} />
     </Route>
+
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
@@ -55,7 +85,9 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <AppRoutes />
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>

@@ -55,6 +55,8 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+export { API_BASE_URL };
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -69,6 +71,31 @@ export class ApiError extends Error {
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   params?: Record<string, string | number | boolean | string[] | undefined>;
   body?: unknown;
+  /** Skip the Authorization header (used for auth endpoints that don't need it) */
+  skipAuth?: boolean;
+}
+
+// ─── Token helpers (shared with AuthContext) ────────────────────────────────
+
+const ACCESS_TOKEN_KEY = 'ps_access_token';
+const REFRESH_TOKEN_KEY = 'ps_refresh_token';
+
+function getAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+function setTokens(accessToken: string, refreshToken: string) {
+  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+}
+
+function clearTokens() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 /**
@@ -76,7 +103,7 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
  */
 function buildUrl(endpoint: string, params?: Record<string, string | number | boolean | string[] | undefined>): string {
   const url = new URL(`${API_BASE_URL}${endpoint}`);
-  
+
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
@@ -89,16 +116,56 @@ function buildUrl(endpoint: string, params?: Record<string, string | number | bo
       }
     });
   }
-  
+
   return url.toString();
+}
+
+// ─── Token refresh lock (prevents concurrent refresh attempts) ──────────────
+
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+/**
+ * Attempt to refresh the access token. Returns true on success.
+ * Concurrent callers share the same in-flight promise.
+ */
+async function tryRefreshToken(): Promise<boolean> {
+  if (isRefreshing && refreshPromise) return refreshPromise;
+
+  const rt = getRefreshToken();
+  if (!rt) return false;
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const url = buildUrl('/api/v1/auth/refresh');
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rt }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      setTokens(data.accessToken, data.refreshToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 /**
  * Main API request function with single retry on network failures
+ * and automatic 401 → token refresh → retry logic.
  */
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const doRequest = async () => {
-    const { params, body, ...fetchOptions } = options;
+  const doRequest = async (retry401 = true) => {
+    const { params, body, skipAuth, ...fetchOptions } = options;
 
     const url = buildUrl(endpoint, params);
 
@@ -107,11 +174,31 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       ...fetchOptions.headers,
     };
 
+    // Attach Bearer token when available (skip for auth endpoints that opt out)
+    if (!skipAuth) {
+      const token = getAccessToken();
+      if (token) {
+        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
     const response = await fetch(url, {
       ...fetchOptions,
       headers,
       body: body ? JSON.stringify(body) : undefined,
     });
+
+    // ── 401 interceptor: try to refresh and retry once ──────────────────
+    if (response.status === 401 && retry401 && !skipAuth) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        return doRequest(false);
+      }
+      // Refresh failed -- clear auth state and redirect to login
+      clearTokens();
+      window.location.href = '/login';
+      throw new ApiError(401, 'Unauthorized');
+    }
 
     // Handle non-JSON responses (like CSV export)
     const contentType = response.headers.get('content-type');
@@ -137,8 +224,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   try {
     return await doRequest();
   } catch (error) {
-    // Retry once on network errors (not HTTP errors)
-    if (error instanceof TypeError || (error instanceof Error && !('status' in error))) {
+    // Retry once on network errors (not HTTP errors), but only for safe/idempotent methods
+    const method = (options.method || 'GET').toUpperCase();
+    const isSafe = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
+    if (isSafe && (error instanceof TypeError || (error instanceof Error && !('status' in error)))) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       return doRequest();
     }
@@ -150,6 +239,56 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
  * API methods matching backend routes
  */
 export const api = {
+  // ==================== AUTH ====================
+  auth: {
+    login: async (email: string, password: string) => {
+      const res = await request<{ user: { id: string; email: string; firstName?: string; lastName?: string; role: 'ADMIN' | 'USER' }; accessToken: string; refreshToken: string }>(
+        '/api/v1/auth/login',
+        { method: 'POST', body: { email, password }, skipAuth: true },
+      );
+      return res;
+    },
+
+    register: async (email: string, password: string, firstName?: string, lastName?: string) => {
+      const res = await request<{ user: { id: string; email: string; firstName?: string; lastName?: string; role: 'ADMIN' | 'USER' }; accessToken: string; refreshToken: string }>(
+        '/api/v1/auth/register',
+        { method: 'POST', body: { email, password, firstName, lastName }, skipAuth: true },
+      );
+      return res;
+    },
+
+    refresh: async (refreshToken: string) => {
+      const res = await request<{ accessToken: string; refreshToken: string }>(
+        '/api/v1/auth/refresh',
+        { method: 'POST', body: { refreshToken }, skipAuth: true },
+      );
+      return res;
+    },
+
+    logout: async (refreshToken: string) => {
+      const res = await request<{ message: string }>(
+        '/api/v1/auth/logout',
+        { method: 'POST', body: { refreshToken } },
+      );
+      return res;
+    },
+
+    me: async () => {
+      const res = await request<{ user: { id: string; email: string; firstName?: string; lastName?: string; role: 'ADMIN' | 'USER' } }>(
+        '/api/v1/auth/me',
+      );
+      return res;
+    },
+
+    changePassword: async (currentPassword: string, newPassword: string) => {
+      const res = await request<{ message: string }>(
+        '/api/v1/auth/password',
+        { method: 'PUT', body: { currentPassword, newPassword } },
+      );
+      return res;
+    },
+  },
+
   // ==================== HEALTH ====================
   health: {
     check: async () => {
@@ -194,11 +333,16 @@ export const api = {
     importApollo: (data: ApolloImportInput) =>
       request<{ data: ImportJob }>('/api/v1/contacts/import/apollo', { method: 'POST', body: data }),
 
-    importCsv: (formData: FormData) =>
-      fetch(`${API_BASE_URL}/api/v1/contacts/import/csv`, {
+    importCsv: (formData: FormData) => {
+      const headers: Record<string, string> = {};
+      const token = getAccessToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      return fetch(`${API_BASE_URL}/api/v1/contacts/import/csv`, {
         method: 'POST',
+        headers,
         body: formData,
-      }).then(res => res.json()),
+      }).then(res => res.json());
+    },
 
     importStatus: (jobId: string) =>
       request<{ data: ImportJob }>(`/api/v1/contacts/import/${jobId}/status`),
@@ -554,8 +698,12 @@ export const api = {
     uploadFile: async (conversationId: string, file: File) => {
       const formData = new FormData();
       formData.append('file', file);
+      const headers: Record<string, string> = {};
+      const token = getAccessToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const response = await fetch(`${API_BASE_URL}/api/v1/chat/conversations/${conversationId}/upload`, {
         method: 'POST',
+        headers,
         body: formData,
       });
       return response.json();

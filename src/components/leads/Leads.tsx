@@ -711,7 +711,7 @@ export const Leads = () => {
                 className="h-9 text-xs"
               >
                 {triggerRealieEnrich.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
-                Enrich with Realie
+                Enrich Property Data
               </Button>
               <Button
                 size="sm"
@@ -733,7 +733,7 @@ export const Leads = () => {
                 <p className="text-xl font-bold">{homeownerStatsData.data.total}</p>
               </div>
               <div className="glass-card p-3">
-                <p className="text-xs text-muted-foreground">Enriched (Realie)</p>
+                <p className="text-xs text-muted-foreground">Enriched (Property)</p>
                 <p className="text-xl font-bold">{homeownerStatsData.data.enriched}</p>
               </div>
               <div className="glass-card p-3">
@@ -912,14 +912,14 @@ export const Leads = () => {
                       </div>
                     </div>
 
-                    {(selectedHomeowner.permitDate || selectedHomeowner.permitDescription || selectedHomeowner.permitNumber) && (
+                    {(selectedHomeowner.permitDate || selectedHomeowner.permitDescriptionDerived || selectedHomeowner.permitDescription || selectedHomeowner.permitNumber) && (
                       <div className="border-t pt-4">
                         <h4 className="text-sm font-semibold mb-3">Permit Details</h4>
                         <div className="grid grid-cols-3 gap-3">
                           <div><p className="text-xs text-muted-foreground">Permit Date</p><p className="text-sm">{selectedHomeowner.permitDateFriendly || selectedHomeowner.permitDate || "—"}</p></div>
                           <div><p className="text-xs text-muted-foreground">Months Ago</p><p className="text-sm">{selectedHomeowner.permitMonthsAgo != null ? `${selectedHomeowner.permitMonthsAgo} mo` : "—"}</p></div>
                           <div><p className="text-xs text-muted-foreground">Permit #</p><p className="text-sm">{selectedHomeowner.permitNumber || "—"}</p></div>
-                          <div className="col-span-3"><p className="text-xs text-muted-foreground">Description</p><p className="text-sm">{selectedHomeowner.permitDescription || "—"}</p></div>
+                          <div className="col-span-3"><p className="text-xs text-muted-foreground">Description</p><p className="text-sm">{selectedHomeowner.permitDescriptionDerived || selectedHomeowner.permitDescription || "—"}</p></div>
                           <div><p className="text-xs text-muted-foreground">Job Value</p><p className="text-sm">{selectedHomeowner.permitJobValue ? `$${selectedHomeowner.permitJobValue.toLocaleString()}` : "—"}</p></div>
                           <div><p className="text-xs text-muted-foreground">Fees</p><p className="text-sm">{selectedHomeowner.permitFees ? `$${selectedHomeowner.permitFees.toLocaleString()}` : "—"}</p></div>
                           <div><p className="text-xs text-muted-foreground">Status</p><p className="text-sm">{selectedHomeowner.permitStatus || "—"}</p></div>
@@ -931,7 +931,7 @@ export const Leads = () => {
 
                     {selectedHomeowner.realieEnriched && (
                       <div className="border-t pt-4">
-                        <h4 className="text-sm font-semibold mb-3">Valuation & Financial (Realie)</h4>
+                        <h4 className="text-sm font-semibold mb-3">Valuation & Financial</h4>
                         <div className="grid grid-cols-3 gap-3">
                           <div><p className="text-xs text-muted-foreground">AVM Value</p><p className="text-sm font-medium">{selectedHomeowner.avmValue ? `$${Math.round(selectedHomeowner.avmValue).toLocaleString()}` : "—"}</p></div>
                           <div><p className="text-xs text-muted-foreground">AVM Range</p><p className="text-sm">{selectedHomeowner.avmMin && selectedHomeowner.avmMax ? `$${Math.round(selectedHomeowner.avmMin).toLocaleString()} - $${Math.round(selectedHomeowner.avmMax).toLocaleString()}` : "—"}</p></div>
@@ -1120,8 +1120,8 @@ export const Leads = () => {
                         <div><p className="text-xs text-muted-foreground">Type</p><p className="text-sm">{selectedConnection.permitType || "—"}</p></div>
                         <div><p className="text-xs text-muted-foreground">Date</p><p className="text-sm">{selectedConnection.permitDate || "—"}</p></div>
                         <div><p className="text-xs text-muted-foreground">Job Value</p><p className="text-sm">{selectedConnection.permitJobValue ? `$${selectedConnection.permitJobValue.toLocaleString()}` : "—"}</p></div>
-                        {selectedConnection.permitDescription && (
-                          <div className="col-span-2"><p className="text-xs text-muted-foreground">Description</p><p className="text-sm">{selectedConnection.permitDescription}</p></div>
+                        {(selectedConnection.permitDescriptionDerived || selectedConnection.permitDescription) && (
+                          <div className="col-span-2"><p className="text-xs text-muted-foreground">Description</p><p className="text-sm">{selectedConnection.permitDescriptionDerived || selectedConnection.permitDescription}</p></div>
                         )}
                         <div><p className="text-xs text-muted-foreground">Source</p><p className="text-sm">{selectedConnection.source}</p></div>
                         <div><p className="text-xs text-muted-foreground">Connected On</p><p className="text-sm">{new Date(selectedConnection.createdAt).toLocaleDateString()}</p></div>
@@ -1185,7 +1185,7 @@ export const Leads = () => {
               <SelectItem value="csv" className="text-xs">CSV Import</SelectItem>
               <SelectItem value="manual" className="text-xs">Manual</SelectItem>
               <SelectItem value="google_maps" className="text-xs">Google Maps</SelectItem>
-              <SelectItem value="hunter" className="text-xs">Hunter.io</SelectItem>
+              <SelectItem value="hunter" className="text-xs">Email Finder</SelectItem>
               <SelectItem value="shovels" className="text-xs">Shovels</SelectItem>
             </SelectContent>
           </Select>
@@ -1734,7 +1734,7 @@ export const Leads = () => {
                       )}
                     </div>
                   )}
-                  {(selectedContact.permitType || selectedContact.permitCity || selectedContact.licenseNumber || (selectedContact.enrichmentData && ('permitDate' in selectedContact.enrichmentData || 'permitCount' in selectedContact.enrichmentData || 'avgJobValue' in selectedContact.enrichmentData))) && (
+                  {(selectedContact.permitType || selectedContact.permitCity || selectedContact.permitDescriptionDerived || selectedContact.permitDescription || selectedContact.licenseNumber || (selectedContact.enrichmentData && ('permitDate' in selectedContact.enrichmentData || 'permitCount' in selectedContact.enrichmentData || 'avgJobValue' in selectedContact.enrichmentData))) && (
                     <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-lg">
                       <p className="text-sm font-medium text-orange-600 mb-3">Permit Info</p>
                       <div className="grid grid-cols-2 gap-3">
@@ -1776,6 +1776,12 @@ export const Leads = () => {
                           <div>
                             <p className="text-xs text-muted-foreground">License #</p>
                             <p className="text-sm font-medium">{selectedContact.licenseNumber}</p>
+                          </div>
+                        )}
+                        {(selectedContact.permitDescriptionDerived || selectedContact.permitDescription) && (
+                          <div className="col-span-2">
+                            <p className="text-xs text-muted-foreground">Description</p>
+                            <p className="text-sm font-medium">{selectedContact.permitDescriptionDerived || selectedContact.permitDescription}</p>
                           </div>
                         )}
                       </div>

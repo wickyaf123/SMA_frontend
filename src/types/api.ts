@@ -109,6 +109,7 @@ export interface Contact {
   permitDateFriendly?: string | null;
   permitMonthsAgo?: number | null;
   permitDescription?: string | null;
+  permitDescriptionDerived?: string | null;
   permitStatus?: string | null;
   permitNumber?: string | null;
   permitJobValue?: number | null;
@@ -286,6 +287,7 @@ export interface Homeowner {
   permitDateFriendly?: string | null;
   permitMonthsAgo?: number | null;
   permitDescription?: string | null;
+  permitDescriptionDerived?: string | null;
   permitJobValue?: number | null;
   permitStatus?: string | null;
   permitNumber?: string | null;
@@ -339,6 +341,7 @@ export interface Connection {
   permitDate?: string | null;
   permitJobValue?: number | null;
   permitDescription?: string | null;
+  permitDescriptionDerived?: string | null;
   source: string;
   createdAt: string;
   updatedAt: string;
@@ -814,7 +817,7 @@ export const sourceLabels: Record<string, string> = {
   import: 'Import',
   manual: 'Manual',
   google_maps: 'Google Maps',
-  hunter: 'Hunter.io',
+  hunter: 'Email Finder',
   csv: 'CSV Import',
   scraper: 'Scraper',
   shovels: 'Shovels',

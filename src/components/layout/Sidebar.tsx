@@ -10,9 +10,18 @@ import {
   ChevronRight,
   LifeBuoy,
   Bot,
-  History
+  History,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface NavItemProps {
   to: string;
@@ -42,6 +51,17 @@ const NavItem = ({ to, icon: Icon, label, active }: NavItemProps) => (
 export const Sidebar = () => {
   const location = useLocation();
   const currentPath = location.pathname === "/" ? "/classic/overview" : location.pathname;
+  const { user, logout } = useAuth();
+
+  // Build initials from user data
+  const initials = user
+    ? [user.firstName?.[0], user.lastName?.[0]].filter(Boolean).join('').toUpperCase() ||
+      user.email[0].toUpperCase()
+    : '?';
+  const displayName = user
+    ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email.split('@')[0]
+    : 'User';
+  const displayEmail = user?.email ?? '';
 
   const mainNav = [
     { id: "/classic/overview", icon: LayoutDashboard, label: "Overview" },
@@ -108,14 +128,31 @@ export const Sidebar = () => {
         />
         
         {/* User Profile Mini */}
-        <div className="mt-4 pt-4 border-t border-sidebar-border flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center border border-border shrink-0">
-            <span className="text-xs font-medium text-foreground">JL</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">James L.</p>
-            <p className="text-xs text-muted-foreground truncate">james@acmecorp.com</p>
-          </div>
+        <div className="mt-4 pt-4 border-t border-sidebar-border">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex w-full items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-accent/50 transition-colors text-left">
+                <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center border border-border shrink-0">
+                  <span className="text-xs font-medium text-foreground">{initials}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{displayEmail}</p>
+                </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" className="w-56">
+              <div className="px-2 py-1.5">
+                <p className="text-sm font-medium">{displayName}</p>
+                <p className="text-xs text-muted-foreground">{displayEmail}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </aside>

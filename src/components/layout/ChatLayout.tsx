@@ -26,6 +26,7 @@ export const ChatLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chats');
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const { toast } = useToast();
 
   const {
@@ -63,17 +64,24 @@ export const ChatLayout = () => {
 
   // Create new conversation
   const handleNewConversation = useCallback(async () => {
+    if (isCreatingConversation) return;
+    setIsCreatingConversation(true);
     try {
       const data = await api.chat.createConversation('New Chat');
       if (data.success && data.data) {
-        setConversations(prev => [data.data, ...prev]);
-        setActiveConversationId(data.data.id);
+        const newConv = data.data;
+        setConversations(prev =>
+          prev.some(c => c.id === newConv.id) ? prev : [newConv, ...prev]
+        );
+        setActiveConversationId(newConv.id);
       }
     } catch (error) {
       console.error('Failed to create conversation:', error);
       toast({ title: 'Failed to create conversation', variant: 'destructive' });
+    } finally {
+      setIsCreatingConversation(false);
     }
-  }, [toast]);
+  }, [isCreatingConversation, toast]);
 
   // Delete conversation
   const handleDeleteConversation = useCallback(async (id: string) => {
@@ -105,22 +113,29 @@ export const ChatLayout = () => {
   // Handle send - auto-create conversation if none active
   const handleSendMessage = useCallback(async (content: string) => {
     if (!activeConversationId) {
+      if (isCreatingConversation) return;
+      setIsCreatingConversation(true);
       try {
         const data = await api.chat.createConversation(content.substring(0, 50));
         if (data.success && data.data) {
-          setConversations(prev => [data.data, ...prev]);
+          const newConv = data.data;
+          setConversations(prev =>
+            prev.some(c => c.id === newConv.id) ? prev : [newConv, ...prev]
+          );
           pendingMessageRef.current = content;
-          setActiveConversationId(data.data.id);
+          setActiveConversationId(newConv.id);
           return;
         }
       } catch (error) {
         console.error('Failed to create conversation:', error);
         toast({ title: 'Failed to start conversation', variant: 'destructive' });
         return;
+      } finally {
+        setIsCreatingConversation(false);
       }
     }
     sendMessage(content);
-  }, [activeConversationId, sendMessage, toast]);
+  }, [activeConversationId, isCreatingConversation, sendMessage, toast]);
 
   // Refresh conversations after streaming completes
   useEffect(() => {
@@ -243,6 +258,7 @@ export const ChatLayout = () => {
               }}
               onDeleteConversation={handleDeleteConversation}
               sidebarOpen={sidebarOpen}
+              isCreating={isCreatingConversation}
             />
           ) : (
             <JobsPanel
