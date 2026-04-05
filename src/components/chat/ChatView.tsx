@@ -17,6 +17,7 @@ interface ChatViewProps {
   isThinking?: boolean;
   onSendMessage: (content: string) => void;
   onCancelStream?: () => void;
+  onCancelWorkflow?: (workflowId: string) => void;
   isLoading?: boolean;
   activeWorkflows?: ActiveWorkflow[];
   activeJobs?: ActiveJob[];
@@ -33,6 +34,7 @@ export const ChatView = ({
   isThinking,
   onSendMessage,
   onCancelStream,
+  onCancelWorkflow,
   isLoading,
   activeWorkflows,
   activeJobs,
@@ -104,6 +106,7 @@ export const ChatView = ({
         toolSteps={toolSteps}
         isThinking={isThinking}
         onSendMessage={onSendMessage}
+        onCancelWorkflow={onCancelWorkflow}
         activeWorkflows={activeWorkflows}
         activeJobs={activeJobs}
         isLoading={isLoading}

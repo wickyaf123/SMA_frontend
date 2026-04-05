@@ -71,6 +71,7 @@ interface UseChatReturn {
   sendMessage: (content: string) => Promise<void>;
   cancelStream: () => void;
   cancelJob: (jobId: string) => void;
+  cancelWorkflow: (workflowId: string) => void;
   isLoading: boolean;
   activeWorkflows: ActiveWorkflow[];
   activeJobs: ActiveJob[];
@@ -632,6 +633,27 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     ));
   }, []);
 
+  const cancelWorkflowFn = useCallback((workflowId: string) => {
+    const convId = conversationIdRef.current;
+    if (!convId || !socketRef.current) return;
+    socketRef.current.emit('workflow:cancel', { workflowId, conversationId: convId });
+    // Optimistic: immediately mark as cancelled so UI updates instantly
+    setActiveWorkflows(prev => prev.map(wf =>
+      wf.workflowId === workflowId
+        ? {
+            ...wf,
+            status: 'cancelled' as const,
+            completedAt: new Date().toISOString(),
+            steps: wf.steps.map(step =>
+              step.status === 'running' || step.status === 'pending'
+                ? { ...step, status: 'skipped' as const }
+                : step
+            ),
+          }
+        : wf
+    ));
+  }, []);
+
   const sendMessage = useCallback(async (content: string) => {
     const convId = conversationIdRef.current;
     if (!convId || !content) return;
@@ -679,6 +701,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     sendMessage,
     cancelStream,
     cancelJob: cancelJobFn,
+    cancelWorkflow: cancelWorkflowFn,
     isLoading,
     activeWorkflows,
     activeJobs,

@@ -33,6 +33,7 @@ interface MessageListProps {
   toolSteps?: ToolStep[];
   isThinking?: boolean;
   onSendMessage?: (content: string) => void;
+  onCancelWorkflow?: (workflowId: string) => void;
   activeWorkflows?: ActiveWorkflow[];
   activeJobs?: ActiveJob[];
   isLoading?: boolean;
@@ -92,6 +93,7 @@ export const MessageList = ({
   toolSteps = [],
   isThinking,
   onSendMessage,
+  onCancelWorkflow,
   activeWorkflows = [],
   activeJobs = [],
   isLoading,
@@ -149,13 +151,19 @@ export const MessageList = ({
   }, []);
 
   const handleCancelWorkflow = useCallback((workflowId: string) => {
-    onSendMessage?.(`CANCEL_WORKFLOW:${workflowId}`);
-  }, [onSendMessage]);
+    if (onCancelWorkflow) {
+      onCancelWorkflow(workflowId);
+    } else {
+      onSendMessage?.(`CANCEL_WORKFLOW:${workflowId}`);
+    }
+  }, [onCancelWorkflow, onSendMessage]);
 
   const filteredMessages = messages.filter(m => {
     if (m.role === 'tool_result') return false;
     // Hide protocol messages (BUTTON:, CONFIRM:, FORM:, SYSTEM_EVENT:) from display
     if (m.role === 'user' && /^(BUTTON|CONFIRM|FORM|SYSTEM_EVENT|CANCEL_WORKFLOW):/.test(m.content)) return false;
+    // Hide empty assistant messages from tool-use rounds (no visible text)
+    if (m.role === 'assistant' && !m.content.trim()) return false;
     return true;
   });
 

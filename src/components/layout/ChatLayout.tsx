@@ -58,6 +58,7 @@ export const ChatLayout = () => {
     isThinking,
     sendMessage,
     cancelStream,
+    cancelWorkflow,
     isLoading,
     activeWorkflows,
     activeJobs,
@@ -373,6 +374,7 @@ export const ChatLayout = () => {
           isThinking={isThinking}
           onSendMessage={handleSendMessage}
           onCancelStream={cancelStream}
+          onCancelWorkflow={cancelWorkflow}
           isLoading={isLoading}
           activeWorkflows={activeWorkflows}
           activeJobs={activeJobs}
