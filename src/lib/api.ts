@@ -145,7 +145,8 @@ async function tryRefreshToken(): Promise<boolean> {
         body: JSON.stringify({ refreshToken: rt }),
       });
       if (!res.ok) return false;
-      const data = await res.json();
+      const json = await res.json();
+      const data = json.data ?? json;
       setTokens(data.accessToken, data.refreshToken);
       return true;
     } catch {
@@ -242,50 +243,50 @@ export const api = {
   // ==================== AUTH ====================
   auth: {
     login: async (email: string, password: string) => {
-      const res = await request<{ user: { id: string; email: string; firstName?: string; lastName?: string; role: 'ADMIN' | 'USER' }; accessToken: string; refreshToken: string }>(
+      const res = await request<{ success: boolean; data: { user: { id: string; email: string; firstName?: string; lastName?: string; role: 'ADMIN' | 'USER' }; accessToken: string; refreshToken: string } }>(
         '/api/v1/auth/login',
         { method: 'POST', body: { email, password }, skipAuth: true },
       );
-      return res;
+      return res.data;
     },
 
     register: async (email: string, password: string, firstName?: string, lastName?: string) => {
-      const res = await request<{ user: { id: string; email: string; firstName?: string; lastName?: string; role: 'ADMIN' | 'USER' }; accessToken: string; refreshToken: string }>(
+      const res = await request<{ success: boolean; data: { user: { id: string; email: string; firstName?: string; lastName?: string; role: 'ADMIN' | 'USER' }; accessToken: string; refreshToken: string } }>(
         '/api/v1/auth/register',
         { method: 'POST', body: { email, password, firstName, lastName }, skipAuth: true },
       );
-      return res;
+      return res.data;
     },
 
     refresh: async (refreshToken: string) => {
-      const res = await request<{ accessToken: string; refreshToken: string }>(
+      const res = await request<{ success: boolean; data: { accessToken: string; refreshToken: string } }>(
         '/api/v1/auth/refresh',
         { method: 'POST', body: { refreshToken }, skipAuth: true },
       );
-      return res;
+      return res.data;
     },
 
     logout: async (refreshToken: string) => {
-      const res = await request<{ message: string }>(
+      const res = await request<{ success: boolean; data: { message: string } }>(
         '/api/v1/auth/logout',
         { method: 'POST', body: { refreshToken } },
       );
-      return res;
+      return res.data;
     },
 
     me: async () => {
-      const res = await request<{ user: { id: string; email: string; firstName?: string; lastName?: string; role: 'ADMIN' | 'USER' } }>(
+      const res = await request<{ success: boolean; data: { id: string; email: string; firstName?: string; lastName?: string; role: 'ADMIN' | 'USER' } }>(
         '/api/v1/auth/me',
       );
-      return res;
+      return { user: res.data };
     },
 
     changePassword: async (currentPassword: string, newPassword: string) => {
-      const res = await request<{ message: string }>(
+      const res = await request<{ success: boolean; data: { message: string } }>(
         '/api/v1/auth/password',
         { method: 'PUT', body: { currentPassword, newPassword } },
       );
-      return res;
+      return res.data;
     },
   },
 
