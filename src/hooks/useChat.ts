@@ -59,6 +59,7 @@ export interface ActiveWorkflow {
   completedSteps: number;
   steps: WorkflowStep[];
   startedAt?: string;
+  completedAt?: string;
 }
 
 interface UseChatReturn {
@@ -93,6 +94,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
   const isStreamingRef = useRef(false);
   const sendMessageRef = useRef<(content: string) => void>(() => {});
   const completedJobIds = useRef<Set<string>>(new Set());
+  const pendingTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
   const { toast } = useToast();
 
   // Request browser notification permission on mount
@@ -136,14 +138,14 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     });
 
     socket.on('chat:token', (data: { conversationId: string; token: string }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setIsThinking(false);
         setStreamingMessage(prev => prev + data.token);
       }
     });
 
     socket.on('chat:tool_use', (data: { conversationId: string; tool: string; input: any }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setIsThinking(false);
         const newStep: ToolStep = {
           id: `${data.tool}-${Date.now()}`,
@@ -157,7 +159,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     });
 
     socket.on('chat:tool_result', (data: { conversationId: string; tool: string; result: any }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setToolSteps(prev => prev.map(step =>
           step.tool === data.tool && step.status === 'running'
             ? { ...step, status: 'done' as const, result: data.result, completedAt: Date.now() }
@@ -167,7 +169,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     });
 
     socket.on('chat:done', async (data: { conversationId: string }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         // Capture the streamed content as a temporary assistant message
         // so it stays visible while we reload from server
         setStreamingMessage(prev => {
@@ -189,12 +191,12 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
         setIsThinking(false);
         setToolSteps([]);
         // Reload replaces temp messages with real server data
-        await loadMessages(conversationId, true);
+        await loadMessages(conversationIdRef.current, true);
       }
     });
 
     socket.on('chat:error', (data: { conversationId: string; error: string }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setIsStreaming(false);
         setIsThinking(false);
         setToolSteps([]);
@@ -216,7 +218,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       steps: WorkflowStep[];
       startedAt?: string;
     }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         const newWorkflow: ActiveWorkflow = {
           workflowId: data.workflowId,
           name: data.name,
@@ -235,7 +237,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       workflowId: string;
       stepOrder: number;
     }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setActiveWorkflows(prev => prev.map(wf =>
           wf.workflowId === data.workflowId
             ? {
@@ -256,7 +258,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       progress: number;
       progressTotal: number;
     }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setActiveWorkflows(prev => prev.map(wf =>
           wf.workflowId === data.workflowId
             ? {
@@ -277,7 +279,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       workflowId: string;
       stepOrder: number;
     }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setActiveWorkflows(prev => prev.map(wf =>
           wf.workflowId === data.workflowId
             ? {
@@ -298,7 +300,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       stepOrder: number;
       error?: string;
     }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setActiveWorkflows(prev => prev.map(wf =>
           wf.workflowId === data.workflowId
             ? {
@@ -319,7 +321,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       workflowId: string;
       stepOrder: number;
     }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setActiveWorkflows(prev => prev.map(wf =>
           wf.workflowId === data.workflowId
             ? {
@@ -337,10 +339,10 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       conversationId: string;
       workflowId: string;
     }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setActiveWorkflows(prev => prev.map(wf =>
           wf.workflowId === data.workflowId
-            ? { ...wf, status: 'completed' as const }
+            ? { ...wf, status: 'completed' as const, completedAt: new Date().toISOString() }
             : wf
         ));
       }
@@ -350,10 +352,10 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       conversationId: string;
       workflowId: string;
     }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setActiveWorkflows(prev => prev.map(wf =>
           wf.workflowId === data.workflowId
-            ? { ...wf, status: 'failed' as const }
+            ? { ...wf, status: 'failed' as const, completedAt: new Date().toISOString() }
             : wf
         ));
       }
@@ -363,10 +365,10 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       conversationId: string;
       workflowId: string;
     }) => {
-      if (data.conversationId === conversationId) {
+      if (data.conversationId === conversationIdRef.current) {
         setActiveWorkflows(prev => prev.map(wf =>
           wf.workflowId === data.workflowId
-            ? { ...wf, status: 'cancelled' as const }
+            ? { ...wf, status: 'cancelled' as const, completedAt: new Date().toISOString() }
             : wf
         ));
       }
@@ -377,8 +379,11 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       jobId: string;
       jobType: string;
       status: string;
+      conversationId?: string;
       result?: any;
     }) => {
+      // Only accept events for this conversation or unscoped events
+      if (data.conversationId && data.conversationId !== conversationIdRef.current) return;
       setActiveJobs(prev => {
         // Deduplicate: if we already have this job, update it
         if (prev.some(j => j.jobId === data.jobId)) return prev;
@@ -396,8 +401,11 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       jobId: string;
       jobType: string;
       status: string;
+      conversationId?: string;
       result?: JobProgressData;
     }) => {
+      // Only accept events for this conversation or unscoped events
+      if (data.conversationId && data.conversationId !== conversationIdRef.current) return;
       setActiveJobs(prev => prev.map(job =>
         job.jobId === data.jobId
           ? {
@@ -414,8 +422,11 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       jobType: string;
       status: string;
       isReplay?: boolean;
+      conversationId?: string;
       result?: any;
     }) => {
+      // Only accept events for this conversation or unscoped events
+      if (data.conversationId && data.conversationId !== conversationIdRef.current) return;
       setActiveJobs(prev => {
         const exists = prev.some(j => j.jobId === data.jobId);
         if (!exists) {
@@ -465,9 +476,13 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
         const resultSummary = r.total === 0
           ? `SYSTEM_EVENT:job_completed:The permit search for ${r.permitType || 'permits'} in ${r.city || 'the specified area'} completed with 0 results found. No contractors matched. Please suggest alternatives to the user.`
           : `SYSTEM_EVENT:job_completed:The permit search completed. Found ${r.total} contractors (${r.enriched || 0} enriched, ${r.incomplete || 0} incomplete) for ${r.permitType || 'permits'} in ${r.city || 'the area'}.${r.sheetUrl ? ` Google Sheet: ${r.sheetUrl}` : ''} Please summarize the results and suggest next steps.`;
-        setTimeout(() => {
-          sendMessageRef.current(resultSummary);
+        const capturedConvId = data.conversationId || conversationId;
+        const timeoutId = setTimeout(() => {
+          if (conversationIdRef.current === capturedConvId) {
+            sendMessageRef.current(resultSummary);
+          }
         }, 1000);
+        pendingTimeoutsRef.current.push(timeoutId);
       }
     });
 
@@ -476,8 +491,11 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       jobType: string;
       status: string;
       error?: string;
+      conversationId?: string;
       result?: any;
     }) => {
+      // Only accept events for this conversation or unscoped events
+      if (data.conversationId && data.conversationId !== conversationIdRef.current) return;
       const isCancelled = data.status === 'cancelled';
       const jobStatus = isCancelled ? 'cancelled' as const : 'failed' as const;
       setActiveJobs(prev => {
@@ -520,6 +538,8 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     socketRef.current = socket;
 
     return () => {
+      pendingTimeoutsRef.current.forEach(clearTimeout);
+      pendingTimeoutsRef.current = [];
       socket.emit('chat:leave', conversationId);
       socket.disconnect();
       socketRef.current = null;
@@ -536,6 +556,29 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       setActiveJobs([]);
     }
   }, [conversationId]);
+
+  // Auto-clean completed/failed workflows and jobs after 60 seconds
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      setActiveWorkflows(prev => prev.filter(wf => {
+        if (wf.status === 'completed' || wf.status === 'failed' || wf.status === 'cancelled') {
+          const completedAt = wf.completedAt ? new Date(wf.completedAt).getTime() : now;
+          return now - completedAt < 60000;
+        }
+        return true;
+      }));
+      setActiveJobs(prev => prev.filter(job => {
+        if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+          const completedAt = job.completedAt ? new Date(job.completedAt).getTime() : now;
+          return now - completedAt < 60000;
+        }
+        return true;
+      }));
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
 
   const loadMessages = async (convId: string, force = false) => {
     try {

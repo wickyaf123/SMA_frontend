@@ -158,6 +158,25 @@ export const ChatLayout = () => {
     sendMessage(content);
   }, [activeConversationId, isCreatingConversation, sendMessage, toast, selectConversation]);
 
+  // Validate activeConversationId exists in the loaded list
+  const [conversationsLoaded, setConversationsLoaded] = useState(false);
+  useEffect(() => {
+    if (conversations.length > 0) {
+      setConversationsLoaded(true);
+    }
+  }, [conversations]);
+
+  useEffect(() => {
+    if (conversationsLoaded && activeConversationId && !isCreatingConversation) {
+      const exists = conversations.some(c => c.id === activeConversationId);
+      if (!exists) {
+        // Conversation doesn't exist - could be deleted or invalid URL
+        navigate('/chat', { replace: true });
+        setActiveConversationId(undefined);
+      }
+    }
+  }, [conversationsLoaded, conversations, activeConversationId, isCreatingConversation, navigate]);
+
   // Refresh conversations after streaming completes
   useEffect(() => {
     if (!isStreaming && activeConversationId) {

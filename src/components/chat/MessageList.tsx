@@ -100,6 +100,7 @@ export const MessageList = ({
 }: MessageListProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLElement | null>(null);
   const userHasScrolledUp = useRef(false);
   const prevMessageCount = useRef(0);
   const prevUserMessageCount = useRef(0);
@@ -110,17 +111,17 @@ export const MessageList = ({
     const root = scrollAreaRef.current;
     if (!root) return;
     const viewport = root.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
-    if (!viewport) return;
+    if (!viewport || viewport === viewportRef.current) return;
+    viewportRef.current = viewport;
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = viewport;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      const isScrolledUp = distanceFromBottom > 100;
-      userHasScrolledUp.current = isScrolledUp;
-      setShowScrollToBottom(isScrolledUp);
+      setShowScrollToBottom(distanceFromBottom > 100);
+      userHasScrolledUp.current = distanceFromBottom > 100;
     };
 
-    viewport.addEventListener('scroll', handleScroll);
+    viewport.addEventListener('scroll', handleScroll, { passive: true });
     return () => viewport.removeEventListener('scroll', handleScroll);
   }, []);
 

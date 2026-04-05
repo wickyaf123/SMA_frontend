@@ -62,7 +62,7 @@ const JobDetailPage = () => {
       try {
         setLoading(true);
         // Try to find the job in history
-        const historyData = await api.jobs.history({ limit: 50 });
+        const historyData = await api.jobs.history({ limit: 200 });
         const allJobs: JobDetail[] = historyData.data?.history || [];
         const found = allJobs.find(j => j.id === id);
 
@@ -119,16 +119,28 @@ const JobDetailPage = () => {
         {error && !loading && (
           <div className="text-center py-12">
             <XCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">Job ID: {id}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={() => navigate('/chat')}
-            >
-              Back to Chat
-            </Button>
+            <p className="text-sm text-foreground font-medium">{error}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              The job may have expired or the ID is invalid.
+            </p>
+            <p className="text-xs text-muted-foreground/60 mt-1 font-mono">ID: {id}</p>
+            <div className="flex items-center justify-center gap-3 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(-1)}
+              >
+                <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
+                Go Back
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/chat')}
+              >
+                Back to Chat
+              </Button>
+            </div>
           </div>
         )}
 

@@ -72,6 +72,7 @@ export const ChatView = ({
       }
     } catch (error) {
       toast({ title: 'Upload failed', description: 'Could not upload the file. Please try again.', variant: 'destructive' });
+      setUploadedFileName('');
     } finally {
       setIsUploading(false);
     }
