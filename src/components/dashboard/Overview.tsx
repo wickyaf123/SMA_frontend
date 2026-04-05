@@ -3,11 +3,11 @@
  * Merged view with stats, trends, and channel comparison
  */
 
-import { 
-  Users, 
-  CheckCircle2, 
-  Send, 
-  MessageSquare, 
+import {
+  Users,
+  CheckCircle2,
+  Send,
+  MessageSquare,
   TrendingUp,
   Mail,
   Smartphone,
@@ -18,6 +18,7 @@ import {
   AlertCircle,
   RefreshCw,
   Calendar,
+  Construction,
 } from "lucide-react";
 import { StatsCard } from "./StatsCard";
 import { 
@@ -37,6 +38,7 @@ import {
   ResponsiveContainer 
 } from "recharts";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useContactStats, useHealth, useOutreachStats } from "@/hooks/useApi";
 
@@ -215,23 +217,32 @@ export const Overview = () => {
 
       {/* Trends Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        {/* Outreach Trends Chart */}
-        <div className="glass-card lg:col-span-2 overflow-hidden flex flex-col group">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 relative z-10">
+        {/* Outreach Trends Chart - Placeholder */}
+        <div className="glass-card lg:col-span-2 overflow-hidden flex flex-col group relative">
+          {/* Coming Soon Overlay */}
+          <div className="absolute inset-0 z-20 bg-background/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-xl">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted border border-border shadow-sm mb-3">
+              <Construction className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-semibold text-muted-foreground">Coming Soon</span>
+            </div>
+            <p className="text-xs text-muted-foreground/70 max-w-[240px] text-center">Time-series trend data will be available once the analytics API is connected.</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 relative z-10 opacity-40">
             <div>
               <h3 className="font-semibold text-foreground text-lg tracking-tight">Outreach Trends</h3>
               <p className="text-sm text-muted-foreground mt-1">Messages sent across all channels</p>
             </div>
             <Tabs defaultValue="weekly" className="w-full sm:w-auto">
               <TabsList className="h-9 w-full sm:w-auto bg-muted/50 p-1">
-                <TabsTrigger value="weekly" className="text-xs px-4 h-7 rounded-md">Weekly</TabsTrigger>
-                <TabsTrigger value="monthly" className="text-xs px-4 h-7 rounded-md">Monthly</TabsTrigger>
+                <TabsTrigger value="weekly" className="text-xs px-4 h-7 rounded-md" disabled>Weekly</TabsTrigger>
+                <TabsTrigger value="monthly" className="text-xs px-4 h-7 rounded-md" disabled>Monthly</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
-          
+
           {/* Legend */}
-          <div className="flex flex-wrap items-center gap-4 text-xs font-medium mb-6 px-1">
+          <div className="flex flex-wrap items-center gap-4 text-xs font-medium mb-6 px-1 opacity-40">
               <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
                 <div className="w-2 h-2 rounded-full bg-primary" />
                 <span>Email</span>
@@ -250,7 +261,7 @@ export const Overview = () => {
             </div>
           </div>
 
-          <div className="h-[300px] w-full mt-auto">
+          <div className="h-[300px] w-full mt-auto opacity-40">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={weeklyTrendData}>
                 <defs>
@@ -268,21 +279,21 @@ export const Overview = () => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border))" strokeOpacity={0.4} vertical={false} />
-                <XAxis 
-                  dataKey="day" 
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }} 
-                  stroke="transparent" 
+                <XAxis
+                  dataKey="day"
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }}
+                  stroke="transparent"
                   tickMargin={12}
                 />
-                <YAxis 
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }} 
-                  stroke="transparent" 
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }}
+                  stroke="transparent"
                   tickMargin={12}
                   axisLine={false}
                 />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--background))', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--background))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '12px',
                     boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)',
@@ -292,42 +303,42 @@ export const Overview = () => {
                   itemStyle={{ fontWeight: 600 }}
                   labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '8px', fontWeight: 500 }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="emails" 
-                  stroke="hsl(var(--primary))" 
+                <Area
+                  type="monotone"
+                  dataKey="emails"
+                  stroke="hsl(var(--primary))"
                   strokeWidth={3}
-                  fill="url(#emailGradient)" 
+                  fill="url(#emailGradient)"
                   name="Emails"
                   dot={false}
                   activeDot={{ r: 6, fill: 'hsl(var(--primary))', strokeWidth: 3, stroke: 'hsl(var(--background))' }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="sms" 
-                  stroke="hsl(var(--accent))" 
+                <Area
+                  type="monotone"
+                  dataKey="sms"
+                  stroke="hsl(var(--accent))"
                   strokeWidth={2}
-                  fill="url(#smsGradient)" 
+                  fill="url(#smsGradient)"
                   name="SMS"
                   dot={false}
                   activeDot={{ r: 5, fill: 'hsl(var(--accent))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="linkedin" 
-                  stroke="hsl(var(--info))" 
+                <Area
+                  type="monotone"
+                  dataKey="linkedin"
+                  stroke="hsl(var(--info))"
                   strokeWidth={2}
-                  fill="url(#linkedinGradient)" 
+                  fill="url(#linkedinGradient)"
                   name="LinkedIn"
                   dot={false}
                   activeDot={{ r: 5, fill: 'hsl(var(--info))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="replies" 
-                  stroke="hsl(45, 95%, 55%)" 
+                <Area
+                  type="monotone"
+                  dataKey="replies"
+                  stroke="hsl(45, 95%, 55%)"
                   strokeWidth={3}
-                  fill="none" 
+                  fill="none"
                   name="Replies"
                   dot={false}
                   activeDot={{ r: 5, fill: 'hsl(45, 95%, 55%)', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
@@ -556,19 +567,28 @@ export const Overview = () => {
 
       {/* Bottom Row: Reply Rate Trend + System Health */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 pb-8">
-        {/* Reply Rate Trend */}
-        <div className="glass-card lg:col-span-2 overflow-hidden flex flex-col">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 relative z-10">
+        {/* Reply Rate Trend - Placeholder */}
+        <div className="glass-card lg:col-span-2 overflow-hidden flex flex-col relative">
+          {/* Coming Soon Overlay */}
+          <div className="absolute inset-0 z-20 bg-background/60 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-xl">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted border border-border shadow-sm mb-3">
+              <Construction className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-semibold text-muted-foreground">Coming Soon</span>
+            </div>
+            <p className="text-xs text-muted-foreground/70 max-w-[240px] text-center">Reply rate trend tracking requires the time-series analytics endpoint.</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 relative z-10 opacity-40">
             <div>
               <h3 className="font-semibold text-foreground text-lg tracking-tight">Reply Rate Trend</h3>
               <p className="text-sm text-muted-foreground mt-1">Weekly reply rate percentage</p>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-success/10 border border-success/20 text-success text-sm font-medium shadow-sm">
-              <TrendingUp className="w-4 h-4" />
-              <span>+4.2% overall</span>
-            </div>
+            <Badge variant="outline" className="text-muted-foreground border-border/50">
+              <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
+              Sample data
+            </Badge>
           </div>
-          <div className="h-[250px] relative z-10 w-full mt-auto">
+          <div className="h-[250px] relative z-10 w-full mt-auto opacity-40">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={replyRateTrend}>
                 <defs>
@@ -578,23 +598,23 @@ export const Overview = () => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border))" strokeOpacity={0.4} vertical={false} />
-                <XAxis 
-                  dataKey="week" 
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }} 
-                  stroke="transparent" 
+                <XAxis
+                  dataKey="week"
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }}
+                  stroke="transparent"
                   tickMargin={12}
                 />
-                <YAxis 
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }} 
-                  stroke="transparent" 
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }}
+                  stroke="transparent"
                   tickMargin={12}
                   tickFormatter={(value) => `${value}%`}
                   domain={[0, 15]}
                   axisLine={false}
                 />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--background))', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--background))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '12px',
                     boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)',
@@ -605,10 +625,10 @@ export const Overview = () => {
                   labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '8px', fontWeight: 500 }}
                   formatter={(value: number) => [`${value}%`, 'Reply Rate']}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="rate" 
-                  stroke="hsl(var(--success))" 
+                <Area
+                  type="monotone"
+                  dataKey="rate"
+                  stroke="hsl(var(--success))"
                   strokeWidth={3}
                   fill="url(#replyGradient)"
                   dot={false}

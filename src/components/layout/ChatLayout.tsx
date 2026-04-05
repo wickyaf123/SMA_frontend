@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ConversationList } from '../chat/ConversationList';
 import { JobsPanel } from '../chat/JobsPanel';
 import { ChatView } from '../chat/ChatView';
@@ -21,13 +21,34 @@ interface Conversation {
 type SidebarTab = 'chats' | 'jobs';
 
 export const ChatLayout = () => {
+  const { conversationId: urlConversationId } = useParams<{ conversationId?: string }>();
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | undefined>();
+  const [activeConversationId, setActiveConversationId] = useState<string | undefined>(urlConversationId);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chats');
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const { toast } = useToast();
+
+  // Sync URL param to local state when URL changes externally
+  useEffect(() => {
+    if (urlConversationId && urlConversationId !== activeConversationId) {
+      setActiveConversationId(urlConversationId);
+    }
+  }, [urlConversationId]);
+
+  // Helper: set conversation and update URL
+  const selectConversation = useCallback((id: string) => {
+    setActiveConversationId(id);
+    navigate(`/chat/${id}`, { replace: true });
+  }, [navigate]);
+
+  // Helper: clear conversation and update URL
+  const clearConversation = useCallback(() => {
+    setActiveConversationId(undefined);
+    navigate('/chat', { replace: true });
+  }, [navigate]);
 
   const {
     messages,
@@ -73,7 +94,7 @@ export const ChatLayout = () => {
         setConversations(prev =>
           prev.some(c => c.id === newConv.id) ? prev : [newConv, ...prev]
         );
-        setActiveConversationId(newConv.id);
+        selectConversation(newConv.id);
       }
     } catch (error) {
       console.error('Failed to create conversation:', error);
@@ -81,7 +102,7 @@ export const ChatLayout = () => {
     } finally {
       setIsCreatingConversation(false);
     }
-  }, [isCreatingConversation, toast]);
+  }, [isCreatingConversation, toast, selectConversation]);
 
   // Delete conversation
   const handleDeleteConversation = useCallback(async (id: string) => {
@@ -89,13 +110,13 @@ export const ChatLayout = () => {
       await api.chat.deleteConversation(id);
       setConversations(prev => prev.filter(c => c.id !== id));
       if (activeConversationId === id) {
-        setActiveConversationId(undefined);
+        clearConversation();
       }
     } catch (error) {
       console.error('Failed to delete conversation:', error);
       toast({ title: 'Failed to delete conversation', variant: 'destructive' });
     }
-  }, [activeConversationId, toast]);
+  }, [activeConversationId, toast, clearConversation]);
 
   // Ref to queue a message after conversation creation
   const pendingMessageRef = useRef<string | null>(null);
@@ -123,7 +144,7 @@ export const ChatLayout = () => {
             prev.some(c => c.id === newConv.id) ? prev : [newConv, ...prev]
           );
           pendingMessageRef.current = content;
-          setActiveConversationId(newConv.id);
+          selectConversation(newConv.id);
           return;
         }
       } catch (error) {
@@ -135,7 +156,7 @@ export const ChatLayout = () => {
       }
     }
     sendMessage(content);
-  }, [activeConversationId, isCreatingConversation, sendMessage, toast]);
+  }, [activeConversationId, isCreatingConversation, sendMessage, toast, selectConversation]);
 
   // Refresh conversations after streaming completes
   useEffect(() => {
@@ -159,14 +180,16 @@ export const ChatLayout = () => {
       {/* Sidebar */}
       <aside
         className={cn(
-          'h-screen bg-black flex flex-col flex-shrink-0 border-r border-border',
+          'h-screen bg-sidebar flex flex-col flex-shrink-0 border-r border-border',
           // Mobile: fixed overlay
           'fixed z-50 transition-transform duration-300 md:relative md:translate-x-0 md:z-auto',
           mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full',
-          // Desktop: existing behavior with width transition
+          // Desktop: fixed width with smooth transition
           'md:transition-all md:duration-300',
-          sidebarOpen ? 'md:w-[260px]' : 'md:w-[68px] md:overflow-hidden',
-          'w-[280px] md:w-auto',
+          sidebarOpen
+            ? 'md:w-[260px] md:min-w-[260px] md:max-w-[260px]'
+            : 'md:w-[68px] md:min-w-[68px] md:max-w-[68px] md:overflow-hidden',
+          'w-[280px]',
         )}
       >
         {/* Brand */}
@@ -188,7 +211,7 @@ export const ChatLayout = () => {
                 'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors',
                 sidebarTab === 'chats'
                   ? 'bg-accent text-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-black/95'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
               )}
             >
               <MessageSquare className="w-3.5 h-3.5" />
@@ -200,7 +223,7 @@ export const ChatLayout = () => {
                 'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors relative',
                 sidebarTab === 'jobs'
                   ? 'bg-accent text-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-black/95'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
               )}
             >
               <Zap className="w-3.5 h-3.5" />
@@ -249,7 +272,7 @@ export const ChatLayout = () => {
               conversations={conversations}
               activeConversationId={activeConversationId}
               onSelectConversation={(id) => {
-                setActiveConversationId(id);
+                selectConversation(id);
                 setMobileSidebarOpen(false);
               }}
               onNewConversation={() => {

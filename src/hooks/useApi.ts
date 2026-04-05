@@ -222,22 +222,54 @@ export function useUpdateContact() {
 export function useDeleteContact() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   return useMutation({
     mutationFn: (id: string) => api.contacts.delete(id),
+    onMutate: async (id: string) => {
+      // Cancel outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: queryKeys.contacts.all });
+
+      // Snapshot all contact list queries for rollback
+      const previousQueries = queryClient.getQueriesData<PaginatedResponse<Contact>>({ queryKey: queryKeys.contacts.all });
+
+      // Optimistically remove the contact from every cached list
+      queryClient.setQueriesData<PaginatedResponse<Contact>>(
+        { queryKey: queryKeys.contacts.all },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.filter((c) => c.id !== id),
+            pagination: old.pagination
+              ? { ...old.pagination, total: Math.max(0, old.pagination.total - 1) }
+              : old.pagination,
+          };
+        },
+      );
+
+      return { previousQueries };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
       toast({
         title: 'Contact deleted',
         description: 'The contact has been removed.',
       });
     },
-    onError: (error: ApiError) => {
+    onError: (error: ApiError, _id, context) => {
+      // Rollback optimistic update
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data);
+        }
+      }
       toast({
         title: 'Failed to delete contact',
         description: error.message,
         variant: 'destructive',
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
     },
   });
 }
@@ -443,22 +475,47 @@ export function useUpdateCampaign() {
 export function useDeleteCampaign() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   return useMutation({
     mutationFn: (id: string) => api.campaigns.delete(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.campaigns.all });
+
+      const previousQueries = queryClient.getQueriesData({ queryKey: queryKeys.campaigns.all });
+
+      queryClient.setQueriesData<PaginatedResponse<Campaign>>(
+        { queryKey: queryKeys.campaigns.all },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.filter((c) => c.id !== id),
+          };
+        },
+      );
+
+      return { previousQueries };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all });
       toast({
         title: 'Campaign deleted',
         description: 'The campaign has been removed.',
       });
     },
-    onError: (error: ApiError) => {
+    onError: (error: ApiError, _id, context) => {
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data);
+        }
+      }
       toast({
         title: 'Failed to delete campaign',
         description: error.message,
         variant: 'destructive',
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all });
     },
   });
 }
@@ -1147,22 +1204,44 @@ export function useUpdateTemplate() {
 export function useDeleteTemplate() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   return useMutation({
     mutationFn: (id: string) => api.templates.delete(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.templates.all });
+
+      const previousQueries = queryClient.getQueriesData({ queryKey: queryKeys.templates.all });
+
+      queryClient.setQueriesData<{ data: MessageTemplate[] }>(
+        { queryKey: queryKeys.templates.all },
+        (old) => {
+          if (!old) return old;
+          return { ...old, data: old.data.filter((t) => t.id !== id) };
+        },
+      );
+
+      return { previousQueries };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.templates.all });
       toast({
         title: 'Template deleted',
         description: 'The template has been removed',
       });
     },
-    onError: (error: ApiError) => {
+    onError: (error: ApiError, _id, context) => {
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data);
+        }
+      }
       toast({
         title: 'Failed to delete template',
         description: error.message,
         variant: 'destructive',
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.templates.all });
     },
   });
 }
@@ -1268,22 +1347,42 @@ export function useUpdateRoutingRule() {
 export function useDeleteRoutingRule() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   return useMutation({
     mutationFn: (id: string) => api.campaigns.routingRules.delete(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.campaigns.routingRules });
+
+      const previousData = queryClient.getQueryData(queryKeys.campaigns.routingRules);
+
+      queryClient.setQueryData<{ data: CampaignRoutingRule[] }>(
+        queryKeys.campaigns.routingRules,
+        (old) => {
+          if (!old) return old;
+          return { ...old, data: old.data.filter((r) => r.id !== id) };
+        },
+      );
+
+      return { previousData };
+    },
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.routingRules });
       toast({
         title: 'Routing rule deleted',
         description: response.message || 'The routing rule has been removed',
       });
     },
-    onError: (error: ApiError) => {
+    onError: (error: ApiError, _id, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKeys.campaigns.routingRules, context.previousData);
+      }
       toast({
         title: 'Failed to delete routing rule',
         description: error.message,
         variant: 'destructive',
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.routingRules });
     },
   });
 }
@@ -1376,12 +1475,40 @@ export function useDeleteHomeowner() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: (id: string) => api.homeowners.delete(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.homeowners.all });
+
+      const previousQueries = queryClient.getQueriesData({ queryKey: queryKeys.homeowners.all });
+
+      queryClient.setQueriesData<PaginatedResponse<Homeowner>>(
+        { queryKey: queryKeys.homeowners.all },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.filter((h) => h.id !== id),
+            pagination: old.pagination
+              ? { ...old.pagination, total: Math.max(0, old.pagination.total - 1) }
+              : old.pagination,
+          };
+        },
+      );
+
+      return { previousQueries };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.homeowners.all });
       toast({ title: 'Homeowner deleted' });
     },
-    onError: (error: ApiError) => {
+    onError: (error: ApiError, _id, context) => {
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data);
+        }
+      }
       toast({ title: 'Failed to delete homeowner', description: error.message, variant: 'destructive' });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.homeowners.all });
     },
   });
 }

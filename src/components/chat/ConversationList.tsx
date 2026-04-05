@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { Plus, Trash2, MessageSquare, Search, X } from 'lucide-react';
+import { Plus, Trash2, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { formatDistanceToNow } from 'date-fns';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
@@ -68,7 +67,7 @@ export const ConversationList = ({
   }, [searchQuery]);
 
   return (
-    <div className="flex flex-col h-full bg-black text-foreground">
+    <div className="flex flex-col h-full bg-sidebar text-foreground">
       {/* New Chat Button */}
       <div className="px-3 pt-3 pb-2">
         <Button

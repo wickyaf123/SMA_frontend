@@ -20,7 +20,17 @@ import {
   Route, ArrowUpDown, GripVertical, TestTube, Filter, Home
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useSettings, useToggleLinkedIn, useTemplates, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useSetDefaultTemplate, useShovelsSettings, useUpdateShovelsSettings, usePipelineControls, useUpdatePipelineControls, useEmergencyStop, useResumePipeline, useScheduleTemplates, useScheduleSettings, useApplyScheduleTemplate, useUpdateSchedules, useTriggerScheduledJob, useRoutingRules, useRoutingFilterOptions, useCreateRoutingRule, useUpdateRoutingRule, useDeleteRoutingRule, useReorderRoutingRules, useTestRouting, useCampaigns, useSyncFromInstantly, useExampleContacts, usePermitRoutingSettings, useUpdatePermitRoutingSettings, useHomeownerSettings, useUpdateHomeownerSettings, useTriggerRealieEnrich } from "@/hooks/useApi";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useSettings, useUpdateSettings, useToggleLinkedIn, useTemplates, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useSetDefaultTemplate, useShovelsSettings, useUpdateShovelsSettings, usePipelineControls, useUpdatePipelineControls, useEmergencyStop, useResumePipeline, useScheduleTemplates, useScheduleSettings, useApplyScheduleTemplate, useUpdateSchedules, useTriggerScheduledJob, useRoutingRules, useRoutingFilterOptions, useCreateRoutingRule, useUpdateRoutingRule, useDeleteRoutingRule, useReorderRoutingRules, useTestRouting, useCampaigns, useSyncFromInstantly, useExampleContacts, usePermitRoutingSettings, useUpdatePermitRoutingSettings, useHomeownerSettings, useUpdateHomeownerSettings, useTriggerRealieEnrich } from "@/hooks/useApi";
 import type { MessageTemplate, ShovelsScraperSettings, HomeownerScraperSettings, PipelineControlSettings, ScheduleTemplate, ScheduleSettings, CampaignRoutingRule, CreateRoutingRuleInput, UpdateRoutingRuleInput, RoutingMatchMode } from "@/types/api";
 
 // Job definitions - these map to pipeline control settings
@@ -210,9 +220,16 @@ const RoutingRulesTab = () => {
     setEditingRule(null);
   };
   
-  const handleDeleteRule = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this routing rule?')) return;
-    await deleteRule.mutateAsync(id);
+  const [deleteRuleTarget, setDeleteRuleTarget] = useState<string | null>(null);
+
+  const handleDeleteRule = (id: string) => {
+    setDeleteRuleTarget(id);
+  };
+
+  const confirmDeleteRule = async () => {
+    if (!deleteRuleTarget) return;
+    await deleteRule.mutateAsync(deleteRuleTarget);
+    setDeleteRuleTarget(null);
   };
   
   const handleTestRouting = async () => {
@@ -773,6 +790,27 @@ const RoutingRulesTab = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Routing Rule Confirmation */}
+      <AlertDialog open={!!deleteRuleTarget} onOpenChange={(open) => { if (!open) setDeleteRuleTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete routing rule?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this routing rule. Contacts will no longer be matched by this rule. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirmDeleteRule(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
@@ -886,7 +924,14 @@ export const Settings = () => {
   
   // API hooks
   const { data: settingsData, isLoading: settingsLoading } = useSettings();
+  const updateSettings = useUpdateSettings();
   const toggleLinkedIn = useToggleLinkedIn();
+
+  // Track dirty state for save button
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Delete confirmation state (replaces browser confirm())
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<{ type: 'template' | 'routing-rule'; id: string } | null>(null);
   
   // Template hooks
   const { data: templatesData, isLoading: templatesLoading } = useTemplates({ channel: 'SMS', isActive: true });
@@ -903,6 +948,18 @@ export const Settings = () => {
     smsPerHour: "50",
     linkedinPerDay: "50",
   });
+
+  // Sync rate limits from server data when loaded
+  useEffect(() => {
+    if (settingsData?.data) {
+      const s = settingsData.data;
+      setRateLimits({
+        emailPerHour: String(s.emailPerHour ?? 100),
+        smsPerHour: String(s.smsPerHour ?? 50),
+        linkedinPerDay: String(s.linkedinPerDay ?? 50),
+      });
+    }
+  }, [settingsData]);
 
   
   // Template editing state
@@ -981,11 +1038,21 @@ export const Settings = () => {
     }
   }, [homeownerSettingsData]);
 
-  const handleSave = (section: string) => {
-    toast({
-      title: "Settings saved",
-      description: `${section} settings have been updated successfully.`
-    });
+  const handleSave = async (section: string) => {
+    try {
+      await updateSettings.mutateAsync({
+        emailPerHour: parseInt(rateLimits.emailPerHour, 10) || 100,
+        smsPerHour: parseInt(rateLimits.smsPerHour, 10) || 50,
+        linkedinPerDay: parseInt(rateLimits.linkedinPerDay, 10) || 50,
+      });
+      setIsDirty(false);
+    } catch {
+      // Error toast is handled by the mutation hook
+    }
+  };
+
+  const markDirty = () => {
+    if (!isDirty) setIsDirty(true);
   };
 
   const toggleCronJob = async (settingKey: keyof PipelineControlSettings, enabled: boolean) => {
@@ -1049,9 +1116,8 @@ export const Settings = () => {
     setEditingTemplate(null);
   };
 
-  const handleDeleteTemplate = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this template?')) return;
-    await deleteTemplate.mutateAsync(id);
+  const handleDeleteTemplate = (id: string) => {
+    setDeleteConfirmTarget({ type: 'template', id });
   };
 
   const handleSetDefault = async (id: string) => {
@@ -1084,9 +1150,19 @@ export const Settings = () => {
             <p className="text-sm text-muted-foreground mt-1">Manage global preferences, limits, and system configurations.</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => handleSave('All')} className="h-9 gap-2 shadow-sm border-border/50 bg-background/50 backdrop-blur-sm">
-              <Save className="w-4 h-4" />
-              <span>Save Changes</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleSave('All')}
+              disabled={!isDirty || updateSettings.isPending}
+              className="h-9 gap-2 shadow-sm border-border/50 bg-background/50 backdrop-blur-sm"
+            >
+              {updateSettings.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              <span>{updateSettings.isPending ? 'Saving...' : isDirty ? 'Save Changes' : 'Saved'}</span>
             </Button>
           </div>
         </div>
@@ -1671,7 +1747,7 @@ export const Settings = () => {
                       id="emailLimit"
                       type="number"
                       value={rateLimits.emailPerHour}
-                      onChange={(e) => setRateLimits({ ...rateLimits, emailPerHour: e.target.value })}
+                      onChange={(e) => { setRateLimits({ ...rateLimits, emailPerHour: e.target.value }); markDirty(); }}
                     />
                     <p className="text-xs text-muted-foreground">Max emails via Instantly per hour</p>
                     </div>
@@ -1681,7 +1757,7 @@ export const Settings = () => {
                       id="smsLimit"
                       type="number"
                       value={rateLimits.smsPerHour}
-                      onChange={(e) => setRateLimits({ ...rateLimits, smsPerHour: e.target.value })}
+                      onChange={(e) => { setRateLimits({ ...rateLimits, smsPerHour: e.target.value }); markDirty(); }}
                     />
                     <p className="text-xs text-muted-foreground">Max SMS via GoHighLevel per hour</p>
                   </div>
@@ -1691,7 +1767,7 @@ export const Settings = () => {
                       id="linkedinLimit"
                       type="number"
                       value={rateLimits.linkedinPerDay}
-                      onChange={(e) => setRateLimits({ ...rateLimits, linkedinPerDay: e.target.value })}
+                      onChange={(e) => { setRateLimits({ ...rateLimits, linkedinPerDay: e.target.value }); markDirty(); }}
                     />
                     <p className="text-xs text-muted-foreground">Max LinkedIn actions per day (recommended: 30-50)</p>
                   </div>
@@ -2429,6 +2505,38 @@ export const Settings = () => {
         </TabsContent>
       </Tabs>
       </div>
+
+      {/* Delete Template Confirmation */}
+      <AlertDialog open={!!deleteConfirmTarget} onOpenChange={(open) => { if (!open) setDeleteConfirmTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteConfirmTarget?.type === 'template' ? 'Delete template?' : 'Delete item?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirmTarget?.type === 'template'
+                ? 'This will permanently remove this message template. Any campaigns using it will need a new template assigned. This action cannot be undone.'
+                : 'This action cannot be undone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!deleteConfirmTarget) return;
+                if (deleteConfirmTarget.type === 'template') {
+                  await deleteTemplate.mutateAsync(deleteConfirmTarget.id);
+                }
+                setDeleteConfirmTarget(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

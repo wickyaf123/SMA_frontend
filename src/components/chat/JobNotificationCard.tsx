@@ -187,6 +187,7 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
                   <Button
                     variant="outline"
                     size="sm"
+                    aria-label="Resume job"
                     className="h-7 text-xs gap-1.5 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-400"
                     onClick={() => onResume?.(job.jobId)}
                   >
@@ -197,6 +198,7 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
                   <Button
                     variant="outline"
                     size="sm"
+                    aria-label="Pause job"
                     className="h-7 text-xs gap-1.5 border-amber-500/30 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
                     onClick={() => onPause?.(job.jobId)}
                   >
@@ -352,6 +354,7 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
                         href={result.sheetUrl}
                         target="_blank"
                         rel="noopener noreferrer"
+                        aria-label="Open Google Sheet"
                         className="flex items-center gap-1.5 text-xs text-primary hover:underline"
                       >
                         <ExternalLink className="w-3 h-3" />
@@ -360,6 +363,7 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
                     )}
                     <button
                       onClick={() => navigate('/classic/leads')}
+                      aria-label="View all in Leads"
                       className="flex items-center gap-1.5 text-xs text-primary hover:underline"
                     >
                       <Users className="w-3 h-3" />

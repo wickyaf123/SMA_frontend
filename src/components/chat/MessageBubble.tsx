@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { User, ThumbsUp, ThumbsDown, Download } from 'lucide-react';
+import { User, ThumbsUp, ThumbsDown, Download, Copy, Check } from 'lucide-react';
 import { useState, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -9,6 +9,63 @@ import { InlineForm } from './InlineForm';
 import { QuickReplyButtons } from './QuickReplyButtons';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+
+/**
+ * Format a date string into a relative time label (e.g. "just now", "2m ago", "1h ago").
+ */
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffSec = Math.floor((now - then) / 1000);
+
+  if (diffSec < 5) return 'just now';
+  if (diffSec < 60) return `${diffSec}s ago`;
+
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+
+  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/**
+ * CopyButton: small icon button that copies text to clipboard with "Copied!" feedback.
+ */
+function CopyButton({ text, className, label = 'Copy' }: { text: string; className?: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Silently fail on clipboard error
+    }
+  }, [text]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      aria-label={copied ? 'Copied' : label}
+      className={cn(
+        'inline-flex items-center gap-1 px-1.5 py-1 rounded text-[11px] font-medium transition-colors',
+        copied
+          ? 'text-emerald-500'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+        className,
+      )}
+    >
+      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  );
+}
 
 export interface ChatMessage {
   id: string;
@@ -24,6 +81,8 @@ interface MessageBubbleProps {
   message: ChatMessage;
   isStreaming?: boolean;
   onSendMessage?: (message: string) => void;
+  /** When true, the message should display its timestamp (used for time clustering). */
+  showTimestamp?: boolean;
 }
 
 function tryParseJson(raw: string): any | null {
@@ -61,7 +120,7 @@ function stripTrailingOpenCodeFence(content: string): [string, boolean] {
   return [content, false];
 }
 
-export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBubbleProps) => {
+export const MessageBubble = ({ message, isStreaming, onSendMessage, showTimestamp = true }: MessageBubbleProps) => {
   const [interactedIds, setInteractedIds] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
   const [showFeedbackComment, setShowFeedbackComment] = useState(false);
@@ -226,7 +285,7 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
       // Fallback: detect interactive JSON even without jerry:* language tags
       if (isStreaming) {
         return (
-          <code className={cn("block overflow-x-auto rounded-lg bg-[#0d1117] text-gray-300 p-3 text-[13px] font-mono my-2", className)} {...props}>
+          <code className={cn("block overflow-x-auto rounded-lg bg-muted text-foreground p-3 text-[13px] font-mono my-2", className)} {...props}>
             {children}
           </code>
         );
@@ -272,16 +331,31 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
         }
       }
 
-      // Default code block rendering
+      // Default code block rendering (copy button is on the parent <pre> element)
       return (
-        <code className={cn("block overflow-x-auto rounded-lg bg-[#0d1117] text-gray-300 p-3 text-[13px] font-mono my-2", className)} {...props}>
+        <code className={cn("block overflow-x-auto rounded-lg bg-muted text-foreground p-3 text-[13px] font-mono my-2", className)} {...props}>
           {children}
         </code>
       );
     },
-    pre: ({ children, ...props }) => (
-      <pre className="my-2 overflow-x-auto rounded-lg bg-[#0d1117] p-3" {...props}>{children}</pre>
-    ),
+    pre: ({ children, ...props }) => {
+      // Extract text content from the code child for copy
+      const extractText = (node: any): string => {
+        if (typeof node === 'string') return node;
+        if (Array.isArray(node)) return node.map(extractText).join('');
+        if (node?.props?.children) return extractText(node.props.children);
+        return '';
+      };
+      const codeText = extractText(children).replace(/\n$/, '');
+      return (
+        <div className="relative group/code my-2">
+          <div className="absolute right-2 top-2 z-10 opacity-0 group-hover/code:opacity-100 transition-opacity">
+            <CopyButton text={codeText} label="Copy code" />
+          </div>
+          <pre className="overflow-x-auto rounded-lg bg-muted p-3" {...props}>{children}</pre>
+        </div>
+      );
+    },
     blockquote: ({ children, ...props }) => (
       <blockquote className="border-l-2 border-primary/50 pl-3 my-2 text-muted-foreground italic" {...props}>{children}</blockquote>
     ),
@@ -359,9 +433,12 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
           </div>
         )}
         {!isUser && !isStreaming && message.content && (
-          <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 touch-device:opacity-100 transition-opacity">
+            <CopyButton text={message.content} label="Copy message" />
             <button
               onClick={() => handleFeedback('up')}
+              aria-label="Helpful"
+              aria-pressed={feedback === 'up'}
               className={cn(
                 'p-1 rounded hover:bg-muted transition-colors',
                 feedback === 'up' ? 'text-green-400' : 'text-muted-foreground hover:text-foreground'
@@ -371,6 +448,8 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
             </button>
             <button
               onClick={() => handleFeedback('down')}
+              aria-label="Not helpful"
+              aria-pressed={feedback === 'down'}
               className={cn(
                 'p-1 rounded hover:bg-muted transition-colors',
                 feedback === 'down' ? 'text-red-400' : 'text-muted-foreground hover:text-foreground'
@@ -400,6 +479,16 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage }: MessageBu
               </div>
             )}
           </div>
+        )}
+
+        {/* Timestamp */}
+        {showTimestamp && !isStreaming && message.createdAt && (
+          <span className={cn(
+            'text-[11px] text-muted-foreground/60 select-none mt-0.5',
+            isUser ? 'text-right' : 'text-left',
+          )}>
+            {formatRelativeTime(message.createdAt)}
+          </span>
         )}
       </div>
     </div>

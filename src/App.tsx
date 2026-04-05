@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import NotFound from "./pages/NotFound";
+import JobDetailPage from "./pages/JobDetailPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -31,6 +32,12 @@ const queryClient = new QueryClient({
   },
 });
 
+/** Wrapper so we can call useNavigate() inside the Campaigns route element */
+const CampaignsPage = () => {
+  const navigate = useNavigate();
+  return <Campaigns onNavigateToSettings={() => navigate('/classic/settings')} />;
+};
+
 const AppRoutes = () => (
   <Routes>
     {/* ── Public auth routes (no layout, no protection) ── */}
@@ -42,15 +49,25 @@ const AppRoutes = () => (
       path="/"
       element={
         <ProtectedRoute>
-          <ChatLayout />
+          <Navigate to="/chat" replace />
         </ProtectedRoute>
       }
     />
     <Route
-      path="/chat"
+      path="/chat/:conversationId?"
       element={
         <ProtectedRoute>
           <ChatLayout />
+        </ProtectedRoute>
+      }
+    />
+
+    {/* ── Protected: Job Detail ── */}
+    <Route
+      path="/jobs/:id"
+      element={
+        <ProtectedRoute>
+          <JobDetailPage />
         </ProtectedRoute>
       }
     />
@@ -68,7 +85,7 @@ const AppRoutes = () => (
       <Route path="overview" element={<Overview />} />
       <Route path="pipeline" element={<PipelineCanvas />} />
       <Route path="leads" element={<Leads />} />
-      <Route path="campaigns" element={<Campaigns onNavigateToSettings={() => {}} />} />
+      <Route path="campaigns" element={<CampaignsPage />} />
       <Route path="integrations" element={<Integrations />} />
       <Route path="settings" element={<Settings />} />
       <Route path="history" element={<HistoryLog />} />

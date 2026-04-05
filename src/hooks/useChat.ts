@@ -95,6 +95,13 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
   const completedJobIds = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
+  // Request browser notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
   useEffect(() => {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
@@ -436,6 +443,23 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
 
       if (completedJobIds.current.has(data.jobId)) return;
       completedJobIds.current.add(data.jobId);
+
+      // Toast notification for all completed jobs
+      const jobLabel = data.jobType || 'Job';
+      toast({
+        title: 'Job completed',
+        description: jobLabel,
+      });
+
+      // Browser notification when tab is not focused
+      if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification('Job completed', { body: jobLabel, icon: '/favicon.ico' });
+        } catch {
+          // Silently ignore notification errors (e.g. in unsupported contexts)
+        }
+      }
+
       if (data.jobType?.includes('permit') && data.result) {
         const r = data.result;
         const resultSummary = r.total === 0

@@ -3,7 +3,7 @@ import { MessageList } from './MessageList';
 import { ChatMessage } from './MessageBubble';
 import { ToolStep } from './AgentSteps';
 import type { ActiveWorkflow, ActiveJob } from '@/hooks/useChat';
-import { Send, Square, Paperclip } from 'lucide-react';
+import { Send, Square, Paperclip, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
@@ -41,6 +41,8 @@ export const ChatView = ({
   onResumeJob,
 }: ChatViewProps) => {
   const [input, setInput] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -59,15 +61,19 @@ export const ChatView = ({
       return;
     }
 
+    setIsUploading(true);
     try {
       const data = await api.chat.uploadFile(conversationId!, file);
       if (data.success && data.data) {
         const { rowCount, columns } = data.data;
         onSendMessage(`SYSTEM_EVENT:file_uploaded:User uploaded a CSV file "${file.name}" with ${rowCount} rows. Columns: ${columns.join(', ')}. Use the uploaded data to help the user.`);
         toast({ title: 'File uploaded', description: `${file.name} uploaded successfully.` });
+        setUploadedFileName(file.name);
       }
     } catch (error) {
       toast({ title: 'Upload failed', description: 'Could not upload the file. Please try again.', variant: 'destructive' });
+    } finally {
+      setIsUploading(false);
     }
 
     // Reset the input
@@ -127,19 +133,37 @@ export const ChatView = ({
                 />
                 <Button
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isStreaming || isLoading || !conversationId}
+                  disabled={isStreaming || isLoading || isUploading || !conversationId}
                   size="icon"
                   variant="ghost"
+                  aria-label="Attach file"
                   className="shrink-0 h-8 w-8 rounded-full text-foreground/60 hover:text-foreground hover:bg-accent disabled:opacity-30 transition-colors"
                 >
-                  <Paperclip className="w-4 h-4" />
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Paperclip className="w-4 h-4" />
+                  )}
                 </Button>
+                {uploadedFileName && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium max-w-[140px]">
+                    <span className="truncate">{uploadedFileName}</span>
+                    <button
+                      onClick={() => setUploadedFileName(null)}
+                      aria-label="Remove file"
+                      className="shrink-0 hover:text-primary/70 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1">
                 <Button
                   onClick={isStreaming ? onCancelStream : handleSend}
                   disabled={isStreaming ? false : (!input.trim() || isLoading)}
                   size="icon"
+                  aria-label={isStreaming ? 'Stop generating' : 'Send message'}
                   className="shrink-0 h-8 w-8 rounded-full bg-foreground text-black hover:bg-white disabled:bg-foreground/20 disabled:text-foreground/40 transition-colors"
                 >
                   {isStreaming ? (

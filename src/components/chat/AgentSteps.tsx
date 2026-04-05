@@ -120,6 +120,8 @@ const StepItem = ({ step }: { step: ToolStep }) => {
     <div className="group">
       <button
         onClick={() => setExpanded(!expanded)}
+        aria-label={expanded ? 'Collapse details' : 'Show details'}
+        aria-expanded={expanded}
         className="flex items-center gap-2.5 w-full text-left py-1.5 px-2 rounded-md hover:bg-muted transition-colors"
       >
         {step.status === 'running' ? (

@@ -59,6 +59,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
@@ -158,6 +168,10 @@ export const Leads = () => {
   const [isEnrollOpen, setIsEnrollOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'single' | 'bulk' | 'homeowner'; id?: string; count?: number } | null>(null);
+  const [bulkDeleteProgress, setBulkDeleteProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Form states
   const [newContact, setNewContact] = useState<CreateContactInput>({
@@ -414,10 +428,8 @@ export const Leads = () => {
     });
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this contact?")) {
-      await deleteContact.mutateAsync(id);
-    }
+  const handleDelete = (id: string) => {
+    setDeleteTarget({ type: 'single', id });
   };
 
   const fetchAllContactIds = async (): Promise<string[]> => {
@@ -457,21 +469,65 @@ export const Leads = () => {
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     const totalCount = isAllPagesSelected ? (pagination?.total || 0) : selectedIds.size;
-    if (confirm(`Delete ${totalCount} contacts?`)) {
-      if (isAllPagesSelected) {
-        const allIds = await fetchAllContactIds();
-        for (const id of allIds) {
-          await deleteContact.mutateAsync(id);
+    setDeleteTarget({ type: 'bulk', count: totalCount });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    if (deleteTarget.type === 'single' && deleteTarget.id) {
+      await deleteContact.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+      return;
+    }
+
+    if (deleteTarget.type === 'homeowner' && deleteTarget.id) {
+      await deleteHomeowner.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+      return;
+    }
+
+    if (deleteTarget.type === 'bulk') {
+      const ids = isAllPagesSelected
+        ? await fetchAllContactIds()
+        : Array.from(selectedIds);
+
+      const total = ids.length;
+      setBulkDeleteProgress({ current: 0, total });
+
+      // Use Promise.allSettled for parallel execution with progress tracking
+      const BATCH_SIZE = 10;
+      let succeeded = 0;
+      let failed = 0;
+
+      for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+        const batch = ids.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map((id) => deleteContact.mutateAsync(id))
+        );
+
+        for (const result of results) {
+          if (result.status === 'fulfilled') succeeded++;
+          else failed++;
         }
-      } else {
-        for (const id of selectedIds) {
-          await deleteContact.mutateAsync(id);
-        }
+
+        setBulkDeleteProgress({ current: succeeded + failed, total });
       }
+
+      setBulkDeleteProgress(null);
+      setDeleteTarget(null);
       setSelectedIds(new Set());
       setIsAllPagesSelected(false);
+
+      toast({
+        title: 'Bulk delete complete',
+        description: failed > 0
+          ? `Deleted ${succeeded} contacts. ${failed} failed.`
+          : `Successfully deleted ${succeeded} contacts.`,
+        variant: failed > 0 ? 'destructive' : undefined,
+      });
     }
   };
 
@@ -824,7 +880,7 @@ export const Leads = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={(e) => { e.stopPropagation(); deleteHomeowner.mutate(ho.id); }}
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: 'homeowner', id: ho.id }); }}
                           className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -2510,6 +2566,59 @@ export const Leads = () => {
       </div>
       </div>)}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteTarget?.type === 'bulk'
+                ? `Delete ${deleteTarget.count} contacts?`
+                : deleteTarget?.type === 'homeowner'
+                  ? 'Delete homeowner?'
+                  : 'Delete contact?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.type === 'bulk'
+                ? `This will permanently delete ${deleteTarget.count} selected contacts. This action cannot be undone.`
+                : deleteTarget?.type === 'homeowner'
+                  ? 'This will permanently remove this homeowner record. This action cannot be undone.'
+                  : 'This will permanently remove this contact and all associated data. This action cannot be undone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {bulkDeleteProgress && (
+            <div className="py-3">
+              <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+                <span>Deleting...</span>
+                <span>{bulkDeleteProgress.current} of {bulkDeleteProgress.total}</span>
+              </div>
+              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-destructive rounded-full transition-all duration-200"
+                  style={{ width: `${(bulkDeleteProgress.current / bulkDeleteProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!bulkDeleteProgress}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              disabled={!!bulkDeleteProgress}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleteProgress ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -127,9 +127,11 @@ export const Integrations = () => {
 
   const handleTestConnection = async (integration: string) => {
     setTestingIntegration(integration);
-    // Simulate API test
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setTestingIntegration(null);
+    try {
+      await refetchHealth();
+    } finally {
+      setTestingIntegration(null);
+    }
   };
 
   // Determine system health (healthy or degraded means API is responding)

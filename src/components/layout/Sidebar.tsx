@@ -114,12 +114,13 @@ export const Sidebar = () => {
           label="Switch to Jerry"
           active={false}
         />
-        <NavItem
-          to="/support"
-          icon={LifeBuoy}
-          label="Help & Support"
-          active={currentPath === "/support"}
-        />
+        <a
+          href="mailto:support@permitscraper.ai"
+          className="group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-white/5 hover:text-foreground dark:hover:bg-white/5"
+        >
+          <LifeBuoy className="w-4 h-4 shrink-0 transition-colors text-muted-foreground group-hover:text-foreground" />
+          <span className="flex-1 truncate">Help & Support</span>
+        </a>
         <NavItem
           to="/classic/settings"
           icon={Settings}

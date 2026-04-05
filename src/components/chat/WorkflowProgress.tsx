@@ -95,7 +95,7 @@ const StepRow = ({ step }: { step: WorkflowStep }) => {
       </div>
 
       {step.status === 'running' && progressPercent !== null && (
-        <div className="ml-6.5 flex items-center gap-2">
+        <div className="ml-[26px] flex items-center gap-2">
           <Progress value={progressPercent} className="h-1.5 flex-1" />
           <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
             {step.progress}/{step.progressTotal}
@@ -104,7 +104,7 @@ const StepRow = ({ step }: { step: WorkflowStep }) => {
       )}
 
       {step.status === 'failed' && step.error && (
-        <div className="ml-6.5 px-2 py-1 bg-destructive/10 rounded text-[11px] text-destructive leading-relaxed">
+        <div className="ml-[26px] px-2 py-1 bg-destructive/10 rounded text-[11px] text-destructive leading-relaxed">
           {step.error}
         </div>
       )}

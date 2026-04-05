@@ -1,11 +1,30 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { MessageBubble, ChatMessage } from './MessageBubble';
 import { AgentSteps, ToolStep } from './AgentSteps';
 import { WorkflowProgress } from './WorkflowProgress';
 import { JobNotificationCard } from './JobNotificationCard';
 import type { ActiveWorkflow, ActiveJob } from '@/hooks/useChat';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, BarChart3, Zap, Home, MapPin, Trash2, Calendar, Flame } from 'lucide-react';
+import { Search, BarChart3, Zap, Home, MapPin, Trash2, Calendar, Flame, ArrowDown } from 'lucide-react';
+
+/**
+ * Determine which messages in a list should show their timestamp.
+ * Messages within 60 seconds of each other share a single timestamp (shown on the last one).
+ */
+function getTimestampVisibility(messages: ChatMessage[]): Set<string> {
+  const showIds = new Set<string>();
+  if (messages.length === 0) return showIds;
+
+  for (let i = 0; i < messages.length; i++) {
+    const current = new Date(messages[i].createdAt).getTime();
+    const next = i + 1 < messages.length ? new Date(messages[i + 1].createdAt).getTime() : Infinity;
+    // Show timestamp if next message is more than 60s away, or this is the last message
+    if (next - current > 60_000 || i === messages.length - 1) {
+      showIds.add(messages[i].id);
+    }
+  }
+  return showIds;
+}
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -84,6 +103,7 @@ export const MessageList = ({
   const userHasScrolledUp = useRef(false);
   const prevMessageCount = useRef(0);
   const prevUserMessageCount = useRef(0);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   // Track scroll position to detect when user scrolls up
   useEffect(() => {
@@ -95,7 +115,9 @@ export const MessageList = ({
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = viewport;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      userHasScrolledUp.current = distanceFromBottom > 100;
+      const isScrolledUp = distanceFromBottom > 100;
+      userHasScrolledUp.current = isScrolledUp;
+      setShowScrollToBottom(isScrolledUp);
     };
 
     viewport.addEventListener('scroll', handleScroll);
@@ -118,6 +140,12 @@ export const MessageList = ({
 
     prevMessageCount.current = messages.length;
   }, [messages, streamingMessage, toolSteps, activeWorkflows, activeJobs]);
+
+  const scrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    userHasScrolledUp.current = false;
+    setShowScrollToBottom(false);
+  }, []);
 
   const handleCancelWorkflow = useCallback((workflowId: string) => {
     onSendMessage?.(`CANCEL_WORKFLOW:${workflowId}`);
@@ -149,9 +177,50 @@ export const MessageList = ({
     }
   }
 
+  // Compute which messages should show their timestamp (time clustering)
+  const timestampVisibility = getTimestampVisibility(filteredMessages);
+
   return (
-    <ScrollArea className="flex-1 px-4" ref={scrollAreaRef}>
+    <ScrollArea className="flex-1 px-4 relative" ref={scrollAreaRef}>
       <div className="max-w-3xl mx-auto py-6 space-y-5 min-h-full flex flex-col">
+        {/* Loading skeleton */}
+        {isLoading && filteredMessages.length === 0 && (
+          <div className="flex flex-col space-y-5 flex-1 py-4">
+            {/* Skeleton assistant message */}
+            <div className="flex gap-4">
+              <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0" />
+              <div className="flex flex-col gap-2 max-w-[70%]">
+                <div className="h-4 w-64 bg-muted animate-pulse rounded-lg" />
+                <div className="h-4 w-48 bg-muted animate-pulse rounded-lg" />
+                <div className="h-3 w-20 bg-muted/60 animate-pulse rounded-lg mt-1" />
+              </div>
+            </div>
+            {/* Skeleton user message */}
+            <div className="flex gap-4 flex-row-reverse">
+              <div className="flex flex-col gap-2 items-end max-w-[60%]">
+                <div className="h-10 w-52 bg-muted animate-pulse rounded-3xl" />
+                <div className="h-3 w-16 bg-muted/60 animate-pulse rounded-lg" />
+              </div>
+            </div>
+            {/* Skeleton assistant message */}
+            <div className="flex gap-4">
+              <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0" />
+              <div className="flex flex-col gap-2 max-w-[75%]">
+                <div className="h-4 w-72 bg-muted animate-pulse rounded-lg" />
+                <div className="h-4 w-56 bg-muted animate-pulse rounded-lg" />
+                <div className="h-4 w-40 bg-muted animate-pulse rounded-lg" />
+                <div className="h-3 w-20 bg-muted/60 animate-pulse rounded-lg mt-1" />
+              </div>
+            </div>
+            {/* Skeleton user message */}
+            <div className="flex gap-4 flex-row-reverse">
+              <div className="flex flex-col gap-2 items-end max-w-[60%]">
+                <div className="h-10 w-36 bg-muted animate-pulse rounded-3xl" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Empty state */}
         {filteredMessages.length === 0 && !isStreaming && !isLoading && (
           <div className="flex-1 flex flex-col items-center justify-center text-center pb-12">
@@ -218,6 +287,7 @@ export const MessageList = ({
                 key={message.id}
                 message={message}
                 onSendMessage={onSendMessage}
+                showTimestamp={timestampVisibility.has(message.id)}
               />
             );
           })}
@@ -272,6 +342,18 @@ export const MessageList = ({
           <div ref={bottomRef} className="h-4" />
         </div>
       </div>
+
+      {/* Floating "Jump to latest" button */}
+      {showScrollToBottom && (
+        <button
+          onClick={scrollToBottom}
+          aria-label="Jump to latest message"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border shadow-lg text-xs font-medium text-foreground hover:bg-accent transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
+        >
+          <ArrowDown className="w-3.5 h-3.5" />
+          Jump to latest
+        </button>
+      )}
     </ScrollArea>
   );
 };
