@@ -132,7 +132,7 @@ export const ConversationList = ({
                   onKeyDown={(e) => e.key === 'Enter' && onSelectConversation(result.id)}
                   className="group relative w-full flex flex-col py-2.5 px-3 rounded-lg text-left transition-colors cursor-pointer text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
-                  <p className="truncate text-[13px] leading-tight text-foreground">
+                  <p className="line-clamp-2 text-[13px] leading-snug text-foreground" title={result.title || 'New Chat'}>
                     {result.title || 'New Chat'}
                   </p>
                   {result.matchingMessage && (
@@ -164,7 +164,7 @@ export const ConversationList = ({
                   )}
                 >
                   <div className="flex-1 min-w-0 pr-6">
-                    <p className="truncate text-[13px] leading-tight">
+                    <p className="line-clamp-2 text-[13px] leading-snug" title={convo.title || 'New Chat'}>
                       {convo.title || 'New Chat'}
                     </p>
                   </div>

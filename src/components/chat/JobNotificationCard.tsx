@@ -377,22 +377,29 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
 
           {/* ========== FAILED ========== */}
           {status === 'failed' && (
-            <div className="flex items-center gap-3">
-              <XCircle className="w-5 h-5 text-destructive shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Permit Search Failed</p>
-                <p className="text-xs text-destructive/80 mt-0.5">
-                  {error || 'An unexpected error occurred'}
-                </p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <XCircle className="w-5 h-5 text-destructive shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Permit Search Failed</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {permitType} permits{city ? ` in ${city}` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {elapsedStr}
+                  </span>
+                  <Badge variant="destructive" className="text-[10px]">
+                    Failed
+                  </Badge>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {elapsedStr}
-                </span>
-                <Badge variant="destructive" className="text-[10px]">
-                  Failed
-                </Badge>
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">
+                <p className="text-xs text-destructive dark:text-red-400">
+                  {error || 'An unexpected error occurred. Check the logs or contact Stark.'}
+                </p>
               </div>
             </div>
           )}

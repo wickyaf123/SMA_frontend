@@ -20,6 +20,8 @@ import {
   Search,
   Building,
   FileText,
+  DollarSign,
+  Target,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -40,6 +42,8 @@ const iconMap: Record<string, LucideIcon> = {
   search: Search,
   building: Building,
   'file-text': FileText,
+  'dollar-sign': DollarSign,
+  target: Target,
 };
 
 export interface QuickReplyOption {
@@ -118,7 +122,7 @@ export const QuickReplyButtons = ({
                   disabled={isItemDisabled}
                   onClick={() => handleMultiToggle(option.value)}
                   className={cn(
-                    'rounded-xl border border-border/50 bg-card px-4 py-3 text-left transition-all',
+                    'rounded-xl border border-border/50 bg-card px-4 py-3 text-left transition-all overflow-hidden',
                     'hover:border-primary/40 hover:bg-muted/40',
                     isChecked && 'ring-2 ring-primary border-primary bg-primary/5',
                     isItemDisabled && !isChecked && 'opacity-40 cursor-not-allowed hover:bg-card hover:border-border/50',
@@ -138,7 +142,7 @@ export const QuickReplyButtons = ({
                     <div className="min-w-0">
                       <p className="text-sm font-medium leading-tight">{option.label}</p>
                       {option.description && (
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug truncate">
                           {option.description}
                         </p>
                       )}
@@ -156,7 +160,7 @@ export const QuickReplyButtons = ({
                 disabled={singleDisabled && !isSelected}
                 onClick={() => handleSingleSelect(option.value)}
                 className={cn(
-                  'rounded-xl border border-border/50 bg-card px-4 py-3 text-left transition-all',
+                  'rounded-xl border border-border/50 bg-card px-4 py-3 text-left transition-all overflow-hidden',
                   'hover:border-primary/40 hover:bg-muted/40',
                   isSelected && 'ring-2 ring-primary border-primary bg-primary/5',
                   singleDisabled && !isSelected && 'opacity-40 cursor-not-allowed hover:bg-card hover:border-border/50',
@@ -175,7 +179,7 @@ export const QuickReplyButtons = ({
                   <div className="min-w-0">
                     <p className="text-sm font-medium leading-tight">{option.label}</p>
                     {option.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-snug truncate">
                         {option.description}
                       </p>
                     )}

@@ -78,6 +78,8 @@ interface UseChatReturn {
   connectionStatus: 'connected' | 'disconnected' | 'reconnecting';
   pauseJob: (jobId: string) => void;
   resumeJob: (jobId: string) => void;
+  hasRunningWork: boolean;
+  messageQueue: string[];
 }
 
 export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
@@ -89,6 +91,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [activeWorkflows, setActiveWorkflows] = useState<ActiveWorkflow[]>([]);
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
+  const [messageQueue, setMessageQueue] = useState<string[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
   const socketRef = useRef<Socket | null>(null);
   const conversationIdRef = useRef(conversationId);
@@ -339,13 +342,33 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     socket.on('workflow:completed', (data: {
       conversationId: string;
       workflowId: string;
+      result?: any;
     }) => {
       if (data.conversationId === conversationIdRef.current) {
-        setActiveWorkflows(prev => prev.map(wf =>
-          wf.workflowId === data.workflowId
-            ? { ...wf, status: 'completed' as const, completedAt: new Date().toISOString() }
-            : wf
-        ));
+        // Find workflow name before updating status (use setter to read current state)
+        let workflowName = 'Workflow';
+        setActiveWorkflows(prev => {
+          const found = prev.find(wf => wf.workflowId === data.workflowId);
+          if (found) workflowName = found.name;
+          return prev.map(wf =>
+            wf.workflowId === data.workflowId
+              ? { ...wf, status: 'completed' as const, completedAt: new Date().toISOString() }
+              : wf
+          );
+        });
+
+        // Send workflow results to Claude for summarization
+        const resultSummary = data.result
+          ? JSON.stringify(data.result).substring(0, 2000)
+          : 'completed successfully';
+        const summaryMsg = `SYSTEM_EVENT:workflow_completed:The workflow "${workflowName}" has completed. Results: ${resultSummary}. Please summarize the key findings for the user.`;
+        const capturedConvId = data.conversationId;
+        const timeoutId = setTimeout(() => {
+          if (conversationIdRef.current === capturedConvId) {
+            sendMessageRef.current(summaryMsg);
+          }
+        }, 1000);
+        pendingTimeoutsRef.current.push(timeoutId);
       }
     });
 
@@ -485,6 +508,21 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
         }, 1000);
         pendingTimeoutsRef.current.push(timeoutId);
       }
+
+      // Homeowner search completion
+      if (data.jobType === 'homeowner:search' && data.result) {
+        const r = data.result;
+        const resultSummary = r.total === 0
+          ? `SYSTEM_EVENT:job_completed:The homeowner search for ${r.trade || ''} trade in ${r.city || 'the area'} completed with 0 results. Please suggest alternatives.`
+          : `SYSTEM_EVENT:job_completed:The homeowner search completed. Found ${r.total} homeowners (${r.withEmail || 0} with email, ${r.withPhone || 0} with phone) for ${r.trade || ''} trade in ${r.city || 'the area'}.${r.crossTradeSignals ? ` Cross-trade signals: ${JSON.stringify(r.crossTradeSignals)}` : ''} Please summarize results and suggest next steps.`;
+        const capturedConvId = data.conversationId || conversationId;
+        const timeoutId = setTimeout(() => {
+          if (conversationIdRef.current === capturedConvId) {
+            sendMessageRef.current(resultSummary);
+          }
+        }, 1000);
+        pendingTimeoutsRef.current.push(timeoutId);
+      }
     });
 
     socket.on('job:failed', (data: {
@@ -518,6 +556,30 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
             : job
         );
       });
+
+      // Notify LLM about permit search failures
+      if (data.jobType?.includes('permit') && !isCancelled) {
+        const failMsg = `SYSTEM_EVENT:job_failed:The permit search failed. Error: ${data.error || 'Unknown error'}. Please inform the user about the specific issue and what they can do about it.`;
+        const capturedConvId = data.conversationId || conversationId;
+        const timeoutId = setTimeout(() => {
+          if (conversationIdRef.current === capturedConvId) {
+            sendMessageRef.current(failMsg);
+          }
+        }, 1000);
+        pendingTimeoutsRef.current.push(timeoutId);
+      }
+
+      // Notify LLM about homeowner search failures
+      if (data.jobType === 'homeowner:search' && !isCancelled) {
+        const failMsg = `SYSTEM_EVENT:job_failed:The homeowner search failed. Error: ${data.error || 'Unknown error'}. Please inform the user and suggest trying again.`;
+        const capturedConvId = data.conversationId || conversationId;
+        const timeoutId = setTimeout(() => {
+          if (conversationIdRef.current === capturedConvId) {
+            sendMessageRef.current(failMsg);
+          }
+        }, 1000);
+        pendingTimeoutsRef.current.push(timeoutId);
+      }
     });
 
     socket.on('job:paused', (data: { jobId: string }) => {
@@ -692,13 +754,39 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
   // Keep ref in sync for use in socket handlers
   sendMessageRef.current = sendMessage;
 
+  // Compute whether there's active work running
+  const hasRunningWork =
+    activeWorkflows.some(wf => wf.status === 'running' || wf.status === 'pending') ||
+    activeJobs.some(job => job.status === 'started' || job.status === 'progress');
+
+  // Wrapper that queues messages when work is running (skip SYSTEM_EVENT messages — those always send immediately)
+  const sendMessageOrQueue = useCallback(async (content: string) => {
+    if (content.startsWith('SYSTEM_EVENT:')) {
+      return sendMessage(content);
+    }
+    if (hasRunningWork || isStreamingRef.current) {
+      setMessageQueue(prev => [...prev, content]);
+      return;
+    }
+    return sendMessage(content);
+  }, [hasRunningWork, sendMessage]);
+
+  // Flush message queue when work completes
+  useEffect(() => {
+    if (!hasRunningWork && !isStreamingRef.current && messageQueue.length > 0) {
+      const [next, ...rest] = messageQueue;
+      setMessageQueue(rest);
+      sendMessage(next);
+    }
+  }, [hasRunningWork, isStreaming, messageQueue, sendMessage]);
+
   return {
     messages,
     streamingMessage,
     isStreaming,
     toolSteps,
     isThinking,
-    sendMessage,
+    sendMessage: sendMessageOrQueue,
     cancelStream,
     cancelJob: cancelJobFn,
     cancelWorkflow: cancelWorkflowFn,
@@ -708,5 +796,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     connectionStatus,
     pauseJob: pauseJobFn,
     resumeJob: resumeJobFn,
+    hasRunningWork,
+    messageQueue,
   };
 }

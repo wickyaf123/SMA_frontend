@@ -65,6 +65,8 @@ export const ChatLayout = () => {
     connectionStatus,
     pauseJob,
     resumeJob,
+    hasRunningWork,
+    messageQueue,
   } = useChat({ conversationId: activeConversationId });
 
   // Load conversations
@@ -119,10 +121,13 @@ export const ChatLayout = () => {
     }
   }, [activeConversationId, toast, clearConversation]);
 
+  // Ref to queue a preset run after conversation creation
+  const pendingPresetRef = useRef<string | null>(null);
+
   // Ref to queue a message after conversation creation
   const pendingMessageRef = useRef<string | null>(null);
 
-  // When conversationId changes and there's a pending message, send it
+  // When conversationId changes and there's a pending message or preset, execute it
   useEffect(() => {
     if (activeConversationId && pendingMessageRef.current) {
       const msg = pendingMessageRef.current;
@@ -130,7 +135,27 @@ export const ChatLayout = () => {
       // Small delay to let socket connect
       setTimeout(() => sendMessage(msg), 500);
     }
-  }, [activeConversationId, sendMessage]);
+    if (activeConversationId && pendingPresetRef.current) {
+      const presetId = pendingPresetRef.current;
+      pendingPresetRef.current = null;
+      setTimeout(async () => {
+        try {
+          const result = await api.chat.runWorkflowPreset(activeConversationId, presetId);
+          if (result.success && result.data) {
+            toast({ title: `Starting ${result.data.name}...` });
+            sendMessage(`SYSTEM_EVENT:workflow_preset_started:${JSON.stringify({
+              workflowId: result.data.workflowId,
+              name: result.data.name,
+              totalSteps: result.data.totalSteps,
+            })}`);
+          }
+        } catch (err) {
+          console.error('Failed to run workflow preset:', err);
+          toast({ title: 'Failed to start workflow', variant: 'destructive' });
+        }
+      }, 500);
+    }
+  }, [activeConversationId, sendMessage, toast]);
 
   // Handle send - auto-create conversation if none active
   const handleSendMessage = useCallback(async (content: string) => {
@@ -158,6 +183,47 @@ export const ChatLayout = () => {
     }
     sendMessage(content);
   }, [activeConversationId, isCreatingConversation, sendMessage, toast, selectConversation]);
+
+  // Handle direct workflow preset execution (bypass Claude)
+  const handleRunPreset = useCallback(async (presetId: string) => {
+    if (!activeConversationId) {
+      if (isCreatingConversation) return;
+      setIsCreatingConversation(true);
+      try {
+        const data = await api.chat.createConversation('New Chat');
+        if (data.success && data.data) {
+          const newConv = data.data;
+          setConversations(prev =>
+            prev.some(c => c.id === newConv.id) ? prev : [newConv, ...prev]
+          );
+          pendingPresetRef.current = presetId;
+          selectConversation(newConv.id);
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to create conversation:', error);
+        toast({ title: 'Failed to start workflow', variant: 'destructive' });
+        return;
+      } finally {
+        setIsCreatingConversation(false);
+      }
+    }
+    try {
+      const result = await api.chat.runWorkflowPreset(activeConversationId, presetId);
+      if (result.success && result.data) {
+        toast({ title: `Starting ${result.data.name}...` });
+        // Send a message so the chat shows activity and hides the empty state
+        sendMessage(`SYSTEM_EVENT:workflow_preset_started:${JSON.stringify({
+          workflowId: result.data.workflowId,
+          name: result.data.name,
+          totalSteps: result.data.totalSteps,
+        })}`);
+      }
+    } catch (error) {
+      console.error('Failed to run workflow preset:', error);
+      toast({ title: 'Failed to start workflow', variant: 'destructive' });
+    }
+  }, [activeConversationId, isCreatingConversation, toast, selectConversation, sendMessage]);
 
   // Validate activeConversationId exists in the loaded list
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
@@ -373,6 +439,7 @@ export const ChatLayout = () => {
           toolSteps={toolSteps}
           isThinking={isThinking}
           onSendMessage={handleSendMessage}
+          onRunPreset={handleRunPreset}
           onCancelStream={cancelStream}
           onCancelWorkflow={cancelWorkflow}
           isLoading={isLoading}
@@ -381,6 +448,8 @@ export const ChatLayout = () => {
           conversationId={activeConversationId}
           onPauseJob={pauseJob}
           onResumeJob={resumeJob}
+          hasRunningWork={hasRunningWork}
+          messageQueue={messageQueue}
         />
       </div>
     </div>

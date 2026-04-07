@@ -693,6 +693,12 @@ export const api = {
     sendMessage: (conversationId: string, content: string) =>
       request<{ success: boolean }>(`/api/v1/chat/conversations/${conversationId}/messages`, { method: 'POST', body: { content } }),
 
+    runWorkflowPreset: (conversationId: string, presetId: string, params?: Record<string, any>) =>
+      request<{ success: boolean; data: { workflowId: string; name: string; totalSteps: number } }>(
+        `/api/v1/chat/conversations/${conversationId}/workflow-presets/${presetId}/run`,
+        { method: 'POST', ...(params && { body: { params } }) }
+      ),
+
     sendFeedback: (messageId: string, rating: 'up' | 'down', comment?: string) =>
       request<{ success: boolean }>(`/api/v1/chat/messages/${messageId}/feedback`, { method: 'POST', body: { rating, comment } }),
 

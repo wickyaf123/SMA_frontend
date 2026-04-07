@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { contractorWizardConfig, homeownerWizardConfig } from './wizard';
 
 interface ChatViewProps {
   messages: ChatMessage[];
@@ -16,6 +17,7 @@ interface ChatViewProps {
   toolSteps?: ToolStep[];
   isThinking?: boolean;
   onSendMessage: (content: string) => void;
+  onRunPreset?: (presetId: string) => void;
   onCancelStream?: () => void;
   onCancelWorkflow?: (workflowId: string) => void;
   isLoading?: boolean;
@@ -24,6 +26,8 @@ interface ChatViewProps {
   conversationId?: string;
   onPauseJob?: (jobId: string) => void;
   onResumeJob?: (jobId: string) => void;
+  hasRunningWork?: boolean;
+  messageQueue?: string[];
 }
 
 export const ChatView = ({
@@ -33,6 +37,7 @@ export const ChatView = ({
   toolSteps,
   isThinking,
   onSendMessage,
+  onRunPreset,
   onCancelStream,
   onCancelWorkflow,
   isLoading,
@@ -41,10 +46,13 @@ export const ChatView = ({
   conversationId,
   onPauseJob,
   onResumeJob,
+  hasRunningWork,
+  messageQueue = [],
 }: ChatViewProps) => {
   const [input, setInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [wizardMode, setWizardMode] = useState<'contractor' | 'homeowner' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -85,10 +93,24 @@ export const ChatView = ({
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
-    if (!trimmed || isStreaming) return;
+    if (!trimmed) return;
+    if (hasRunningWork) {
+      toast({ title: 'Message queued', description: 'Will send when current job finishes.' });
+    }
     onSendMessage(trimmed);
     setInput('');
-  }, [input, isStreaming, onSendMessage]);
+  }, [input, hasRunningWork, onSendMessage, toast]);
+
+  const handleStartWizard = useCallback((type: 'contractor' | 'homeowner') => {
+    setWizardMode(type);
+  }, []);
+
+  const handleWizardComplete = useCallback((payload: Record<string, any>) => {
+    const wizConfig = wizardMode === 'contractor' ? contractorWizardConfig : homeownerWizardConfig;
+    const event = `SYSTEM_EVENT:${wizConfig.eventName}:${JSON.stringify(payload)}`;
+    onSendMessage(event);
+    setWizardMode(null);
+  }, [wizardMode, onSendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -106,12 +128,18 @@ export const ChatView = ({
         toolSteps={toolSteps}
         isThinking={isThinking}
         onSendMessage={onSendMessage}
+        onRunPreset={onRunPreset}
         onCancelWorkflow={onCancelWorkflow}
         activeWorkflows={activeWorkflows}
         activeJobs={activeJobs}
         isLoading={isLoading}
         onPauseJob={onPauseJob}
         onResumeJob={onResumeJob}
+        onStartWizard={handleStartWizard}
+        wizardMode={wizardMode}
+        wizardConfig={wizardMode === 'contractor' ? contractorWizardConfig : wizardMode === 'homeowner' ? homeownerWizardConfig : undefined}
+        onWizardComplete={handleWizardComplete}
+        onWizardCancel={() => setWizardMode(null)}
       />
 
       <div className="bg-transparent px-4 pb-[env(safe-area-inset-bottom,16px)] pt-2">
@@ -121,7 +149,7 @@ export const ChatView = ({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask Jerry anything..."
+              placeholder={hasRunningWork ? "Jerry is working... your message will be queued" : "Ask Jerry anything..."}
               className="min-h-[52px] max-h-[200px] resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-foreground placeholder:text-muted-foreground px-4 py-3.5"
               rows={1}
               disabled={isLoading}
@@ -163,6 +191,11 @@ export const ChatView = ({
                 )}
               </div>
               <div className="flex items-center gap-1">
+                {messageQueue.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground/70 font-medium px-1.5 py-0.5 rounded-full bg-muted-foreground/10">
+                    {messageQueue.length} queued
+                  </span>
+                )}
                 <Button
                   onClick={isStreaming ? onCancelStream : handleSend}
                   disabled={isStreaming ? false : (!input.trim() || isLoading)}

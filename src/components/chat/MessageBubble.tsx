@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { User, ThumbsUp, ThumbsDown, Download, Copy, Check } from 'lucide-react';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
@@ -81,6 +81,7 @@ interface MessageBubbleProps {
   message: ChatMessage;
   isStreaming?: boolean;
   onSendMessage?: (message: string) => void;
+  onStartWizard?: (type: 'contractor' | 'homeowner') => void;
   /** When true, the message should display its timestamp (used for time clustering). */
   showTimestamp?: boolean;
 }
@@ -120,7 +121,7 @@ function stripTrailingOpenCodeFence(content: string): [string, boolean] {
   return [content, false];
 }
 
-export const MessageBubble = ({ message, isStreaming, onSendMessage, showTimestamp = true }: MessageBubbleProps) => {
+export const MessageBubble = ({ message, isStreaming, onSendMessage, onStartWizard, showTimestamp = true }: MessageBubbleProps) => {
   const [interactedIds, setInteractedIds] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
   const [showFeedbackComment, setShowFeedbackComment] = useState(false);
@@ -389,9 +390,25 @@ export const MessageBubble = ({ message, isStreaming, onSendMessage, showTimesta
 
   const sanitizedContent = isUser ? message.content : ensureJerryBlocksFenced(message.content);
 
+  // Detect [OPEN_WIZARD:contractor] or [OPEN_WIZARD:homeowner] signals in assistant messages
+  const wizardSignalMatch = !isUser ? sanitizedContent.match(/\[OPEN_WIZARD:(contractor|homeowner)\]/) : null;
+  const contentWithoutWizardSignal = wizardSignalMatch
+    ? sanitizedContent.replace(/\[OPEN_WIZARD:(contractor|homeowner)\]/g, '').trim()
+    : sanitizedContent;
+  const wizardTriggeredRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (wizardSignalMatch && onStartWizard && !isStreaming) {
+      const key = `${message.id}-${wizardSignalMatch[1]}`;
+      if (!wizardTriggeredRef.current.has(key)) {
+        wizardTriggeredRef.current.add(key);
+        onStartWizard(wizardSignalMatch[1] as 'contractor' | 'homeowner');
+      }
+    }
+  }, [wizardSignalMatch, onStartWizard, isStreaming, message.id]);
+
   const [displayContent, hasHiddenBlock] = isStreaming && !isUser
-    ? stripTrailingOpenCodeFence(sanitizedContent)
-    : [sanitizedContent, false];
+    ? stripTrailingOpenCodeFence(contentWithoutWizardSignal)
+    : [contentWithoutWizardSignal, false];
 
   return (
     <div className={cn('group flex gap-4 w-full', isUser ? 'flex-row-reverse' : '')}>

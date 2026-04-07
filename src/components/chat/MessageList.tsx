@@ -3,6 +3,8 @@ import { MessageBubble, ChatMessage } from './MessageBubble';
 import { AgentSteps, ToolStep } from './AgentSteps';
 import { WorkflowProgress } from './WorkflowProgress';
 import { JobNotificationCard } from './JobNotificationCard';
+import { InlineChatWizard } from './wizard/InlineChatWizard';
+import type { WizardConfig } from './wizard/wizard-types';
 import type { ActiveWorkflow, ActiveJob } from '@/hooks/useChat';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, BarChart3, Zap, Home, MapPin, Trash2, Calendar, Flame, ArrowDown } from 'lucide-react';
@@ -33,12 +35,18 @@ interface MessageListProps {
   toolSteps?: ToolStep[];
   isThinking?: boolean;
   onSendMessage?: (content: string) => void;
+  onRunPreset?: (presetId: string) => void;
   onCancelWorkflow?: (workflowId: string) => void;
   activeWorkflows?: ActiveWorkflow[];
   activeJobs?: ActiveJob[];
   isLoading?: boolean;
   onPauseJob?: (jobId: string) => void;
   onResumeJob?: (jobId: string) => void;
+  onStartWizard?: (type: 'contractor' | 'homeowner') => void;
+  wizardMode?: 'contractor' | 'homeowner' | null;
+  wizardConfig?: WizardConfig;
+  onWizardComplete?: (payload: Record<string, any>) => void;
+  onWizardCancel?: () => void;
 }
 
 const quickActions = [
@@ -65,12 +73,14 @@ const workflowPresets = [
     description: "Reply rates · open rates · cost per warm lead",
     icon: Calendar,
     trigger: "Run the end of month performance review",
+    presetId: "monthly-review",
   },
   {
     text: "Bad data cleanup",
     description: "Missing emails · dupes · 90-day no-engagement",
     icon: Trash2,
     trigger: "Run the bad data cleanup workflow",
+    presetId: "bad-data-cleanup",
   },
   {
     text: "New market test run",
@@ -93,12 +103,18 @@ export const MessageList = ({
   toolSteps = [],
   isThinking,
   onSendMessage,
+  onRunPreset,
   onCancelWorkflow,
   activeWorkflows = [],
   activeJobs = [],
   isLoading,
   onPauseJob,
   onResumeJob,
+  onStartWizard,
+  wizardMode,
+  wizardConfig,
+  onWizardComplete,
+  onWizardCancel,
 }: MessageListProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -239,10 +255,20 @@ export const MessageList = ({
             <div className="w-full max-w-2xl mb-6">
               <p className="text-xs font-medium text-foreground/40 uppercase tracking-widest mb-3 text-left">Workflow Presets</p>
               <div className="grid grid-cols-1 gap-2">
-                {workflowPresets.map(({ text, description, icon: Icon, trigger }) => (
+                {workflowPresets.map(({ text, description, icon: Icon, trigger, presetId }) => (
                   <button
                     key={text}
-                    onClick={() => onSendMessage?.(trigger)}
+                    onClick={() => {
+                      if (trigger === 'I want to find contractors') {
+                        onStartWizard?.('contractor');
+                      } else if (trigger === 'I want to find homeowners') {
+                        onStartWizard?.('homeowner');
+                      } else if (presetId && onRunPreset) {
+                        onRunPreset(presetId);
+                      } else {
+                        onSendMessage?.(trigger);
+                      }
+                    }}
                     className="flex items-center gap-3 px-4 py-3 text-sm text-left bg-muted hover:bg-accent rounded-xl text-foreground/80 hover:text-foreground transition-colors border border-transparent hover:border-border group"
                   >
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-card group-hover:bg-muted transition-colors shrink-0">
@@ -296,6 +322,7 @@ export const MessageList = ({
                 key={message.id}
                 message={message}
                 onSendMessage={onSendMessage}
+                onStartWizard={onStartWizard}
                 showTimestamp={timestampVisibility.has(message.id)}
               />
             );
@@ -333,6 +360,16 @@ export const MessageList = ({
             />
           ))}
 
+          {/* Inline wizard (chat-style) */}
+          {wizardMode && wizardConfig && onWizardComplete && onWizardCancel && (
+            <InlineChatWizard
+              key={wizardMode}
+              config={wizardConfig}
+              onComplete={onWizardComplete}
+              onCancel={onWizardCancel}
+            />
+          )}
+
           {/* Streaming message */}
           {isStreaming && streamingMessage && (
             <MessageBubble
@@ -345,6 +382,7 @@ export const MessageList = ({
               }}
               isStreaming={true}
               onSendMessage={onSendMessage}
+              onStartWizard={onStartWizard}
             />
           )}
 
