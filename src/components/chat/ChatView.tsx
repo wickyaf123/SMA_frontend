@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { MessageList } from './MessageList';
 import { ChatMessage } from './MessageBubble';
 import { ToolStep } from './AgentSteps';
@@ -53,8 +53,22 @@ export const ChatView = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [wizardMode, setWizardMode] = useState<'contractor' | 'homeowner' | null>(null);
+  const [searchPending, setSearchPending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Clear searchPending when streaming starts or no active search jobs remain
+  useEffect(() => {
+    if (!searchPending) return;
+    const hasActiveSearchJob = activeJobs?.some(
+      (j) =>
+        (j.jobType === 'homeowner:search' || j.jobType === 'permit') &&
+        (j.status === 'started' || j.status === 'progress')
+    );
+    if (isStreaming || hasActiveSearchJob) {
+      setSearchPending(false);
+    }
+  }, [searchPending, isStreaming, activeJobs]);
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -110,6 +124,7 @@ export const ChatView = ({
     const event = `SYSTEM_EVENT:${wizConfig.eventName}:${JSON.stringify(payload)}`;
     onSendMessage(event);
     setWizardMode(null);
+    setSearchPending(true);
   }, [wizardMode, onSendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -140,6 +155,7 @@ export const ChatView = ({
         wizardConfig={wizardMode === 'contractor' ? contractorWizardConfig : wizardMode === 'homeowner' ? homeownerWizardConfig : undefined}
         onWizardComplete={handleWizardComplete}
         onWizardCancel={() => setWizardMode(null)}
+        searchPending={searchPending}
       />
 
       <div className="bg-transparent px-4 pb-[env(safe-area-inset-bottom,16px)] pt-2">

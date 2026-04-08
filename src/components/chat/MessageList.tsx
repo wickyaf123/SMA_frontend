@@ -3,6 +3,7 @@ import { MessageBubble, ChatMessage } from './MessageBubble';
 import { AgentSteps, ToolStep } from './AgentSteps';
 import { WorkflowProgress } from './WorkflowProgress';
 import { JobNotificationCard } from './JobNotificationCard';
+import { SearchProgressIndicator } from './SearchProgressIndicator';
 import { InlineChatWizard } from './wizard/InlineChatWizard';
 import type { WizardConfig } from './wizard/wizard-types';
 import type { ActiveWorkflow, ActiveJob } from '@/hooks/useChat';
@@ -47,6 +48,7 @@ interface MessageListProps {
   wizardConfig?: WizardConfig;
   onWizardComplete?: (payload: Record<string, any>) => void;
   onWizardCancel?: () => void;
+  searchPending?: boolean;
 }
 
 const quickActions = [
@@ -115,6 +117,7 @@ export const MessageList = ({
   wizardConfig,
   onWizardComplete,
   onWizardCancel,
+  searchPending,
 }: MessageListProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -369,6 +372,25 @@ export const MessageList = ({
               onCancel={onWizardCancel}
             />
           )}
+
+          {/* Search progress indicator — shown after wizard completes, before results arrive */}
+          {(() => {
+            const searchJob = activeJobs.find(
+              (j) =>
+                (j.jobType === 'homeowner:search' || j.jobType === 'permit') &&
+                (j.status === 'started' || j.status === 'progress')
+            );
+            const showIndicator = searchPending || !!searchJob;
+            if (!showIndicator) return null;
+            const progressMessage = searchJob?.progress?.message || 'Starting search...';
+            const phase = searchJob?.progress?.phase;
+            return (
+              <SearchProgressIndicator
+                message={progressMessage}
+                phase={phase}
+              />
+            );
+          })()}
 
           {/* Streaming message */}
           {isStreaming && streamingMessage && (
