@@ -362,7 +362,7 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
                       </a>
                     )}
                     <button
-                      onClick={() => navigate('/classic/leads')}
+                      onClick={() => navigate('/classic/leads?source=shovels')}
                       aria-label="View all in Leads"
                       className="flex items-center gap-1.5 text-xs text-primary hover:underline"
                     >

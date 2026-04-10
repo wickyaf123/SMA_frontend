@@ -150,7 +150,7 @@ export const Leads = () => {
   // UI State — initialize search from URL param if present
   const [search, setSearch] = useState(searchParams.get('search') || "");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get('source') || "all");
   const [validationFilter, setValidationFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
