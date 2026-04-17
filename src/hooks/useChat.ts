@@ -689,6 +689,9 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     try {
       setIsLoading(true);
       const data = await api.chat.getConversation(convId);
+      // Bail if the user switched chats while we were waiting — otherwise
+      // we'd overwrite the new chat's empty state with the old chat's history.
+      if (conversationIdRef.current !== convId) return;
       if (data.success && data.data?.messages) {
         if (!force && isStreamingRef.current) {
           return;
@@ -711,6 +714,15 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
   const loadActivity = async (convId: string) => {
     try {
       const data = await api.chat.getConversationActivity(convId);
+      // Bail if the user switched chats while we were waiting — otherwise
+      // we'd append the old chat's jobs/workflows onto the new chat's panel.
+      if (conversationIdRef.current !== convId) {
+        console.info('[useChat] loadActivity stale, discarding', {
+          requested: convId,
+          current: conversationIdRef.current,
+        });
+        return;
+      }
       if (!data.success || !data.data) {
         console.warn('[useChat] loadActivity: malformed response', data);
         return;

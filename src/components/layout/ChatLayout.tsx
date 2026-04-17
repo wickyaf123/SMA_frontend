@@ -128,21 +128,24 @@ export const ChatLayout = () => {
   const pendingMessageRef = useRef<string | null>(null);
 
   // When conversationId changes and there's a pending message or preset, execute it
+  // immediately. The previous 500ms setTimeouts were a "wait for socket" workaround,
+  // but the socket is established at app mount (not per-chat), so the wait was
+  // mechanical lag that the user perceives as a 3–4s dead button.
   useEffect(() => {
     if (activeConversationId && pendingMessageRef.current) {
       const msg = pendingMessageRef.current;
       pendingMessageRef.current = null;
-      // Small delay to let socket connect
-      setTimeout(() => sendMessage(msg), 500);
+      sendMessage(msg);
     }
     if (activeConversationId && pendingPresetRef.current) {
       const presetId = pendingPresetRef.current;
       pendingPresetRef.current = null;
-      setTimeout(async () => {
+      // Pre-network click confirmation toast — user gets instant feedback.
+      toast({ title: 'Starting workflow…' });
+      (async () => {
         try {
           const result = await api.chat.runWorkflowPreset(activeConversationId, presetId);
           if (result.success && result.data) {
-            toast({ title: `Starting ${result.data.name}...` });
             sendMessage(`SYSTEM_EVENT:workflow_preset_started:${JSON.stringify({
               workflowId: result.data.workflowId,
               name: result.data.name,
@@ -153,7 +156,7 @@ export const ChatLayout = () => {
           console.error('Failed to run workflow preset:', err);
           toast({ title: 'Failed to start workflow', variant: 'destructive' });
         }
-      }, 500);
+      })();
     }
   }, [activeConversationId, sendMessage, toast]);
 
@@ -208,10 +211,12 @@ export const ChatLayout = () => {
         setIsCreatingConversation(false);
       }
     }
+    // Fire the click confirmation BEFORE the network round-trip so the user
+    // gets visible feedback in <50ms instead of waiting for the API to return.
+    toast({ title: 'Starting workflow…' });
     try {
       const result = await api.chat.runWorkflowPreset(activeConversationId, presetId);
       if (result.success && result.data) {
-        toast({ title: `Starting ${result.data.name}...` });
         // Send a message so the chat shows activity and hides the empty state
         sendMessage(`SYSTEM_EVENT:workflow_preset_started:${JSON.stringify({
           workflowId: result.data.workflowId,
