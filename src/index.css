@@ -9,6 +9,12 @@
   }
 }
 
+/* Radix ScrollArea: force viewport inner wrapper to block so children honor parent width instead of expanding with content */
+[data-radix-scroll-area-viewport] > div {
+  display: block !important;
+  min-width: 100%;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

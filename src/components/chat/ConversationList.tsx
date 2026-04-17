@@ -112,7 +112,7 @@ export const ConversationList = ({
 
       {/* Conversation List */}
       <ScrollArea className="flex-1">
-        <div className="px-3 py-2 space-y-[2px]">
+        <div className="px-3 py-2 pr-4 space-y-[2px]">
           {searchResults !== null ? (
             // Search results mode
             <>
@@ -130,16 +130,30 @@ export const ConversationList = ({
                     setSearchResults(null);
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && onSelectConversation(result.id)}
-                  className="group relative w-full flex flex-col py-2.5 px-3 rounded-lg text-left transition-colors cursor-pointer text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className="group relative w-full flex items-start gap-2 py-2.5 px-3 rounded-lg text-left transition-colors cursor-pointer text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
-                  <p className="line-clamp-2 text-[13px] leading-snug text-foreground" title={result.title || 'New Chat'}>
-                    {result.title || 'New Chat'}
-                  </p>
-                  {result.matchingMessage && (
-                    <p className="truncate text-[11px] leading-tight mt-1 text-muted-foreground">
-                      {result.matchingMessage.content}
+                  <div className="flex-1 min-w-0">
+                    <p className="line-clamp-2 text-[13px] leading-snug text-foreground" title={result.title || 'New Chat'}>
+                      {result.title || 'New Chat'}
                     </p>
-                  )}
+                    {result.matchingMessage && (
+                      <p className="truncate text-[11px] leading-tight mt-1 text-muted-foreground">
+                        {result.matchingMessage.content}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteConversation(result.id);
+                      setSearchResults(prev => prev ? prev.filter(r => r.id !== result.id) : null);
+                    }}
+                    className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-white hover:bg-red-500 transition-colors"
+                    title="Delete conversation"
+                    aria-label="Delete conversation"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ))}
             </>
@@ -157,34 +171,28 @@ export const ConversationList = ({
                   onClick={() => onSelectConversation(convo.id)}
                   onKeyDown={(e) => e.key === 'Enter' && onSelectConversation(convo.id)}
                   className={cn(
-                    'group relative w-full flex items-center py-2.5 rounded-lg text-left transition-colors cursor-pointer px-3',
+                    'group relative w-full flex items-center gap-2 py-2.5 rounded-lg text-left transition-colors cursor-pointer px-3',
                     activeConversationId === convo.id
                       ? 'bg-accent text-foreground'
                       : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                   )}
                 >
-                  <div className="flex-1 min-w-0 pr-6">
-                    <p className="line-clamp-2 text-[13px] leading-snug" title={convo.title || 'New Chat'}>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-[13px] leading-snug" title={convo.title || 'New Chat'}>
                       {convo.title || 'New Chat'}
                     </p>
                   </div>
-                  <div
-                    className={cn(
-                      "absolute right-0 top-0 bottom-0 w-12 flex items-center justify-end pr-2 rounded-r-lg opacity-0 group-hover:opacity-100 transition-opacity",
-                      activeConversationId === convo.id ? "bg-gradient-to-l from-accent via-accent to-transparent opacity-100" : "bg-gradient-to-l from-accent via-accent to-transparent"
-                    )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteConversation(convo.id);
+                    }}
+                    className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-white hover:bg-red-500 transition-colors"
+                    title="Delete conversation"
+                    aria-label="Delete conversation"
                   >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteConversation(convo.id);
-                      }}
-                      className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
-                      title="Delete conversation"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ))}
             </>

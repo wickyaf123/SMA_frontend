@@ -36,6 +36,7 @@ export interface ActiveJob {
     incomplete?: number;
     permitType?: string;
     city?: string;
+    permitOnlyCount?: number;
     contacts?: Array<{
       id?: string;
       name: string;
@@ -45,6 +46,26 @@ export interface ActiveJob {
       permitType: string;
       city: string;
     }>;
+    /** Homeowner search lead sample (first ~10). Sent by `homeowner:search` jobs. */
+    homeowners?: Array<{
+      id?: string | null;
+      name?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      street?: string | null;
+      city?: string | null;
+      state?: string | null;
+      zipCode?: string | null;
+      permitType?: string | null;
+      permitDate?: string | null;
+      propertyValue?: number | null;
+      isPermitOnlyLead?: boolean;
+    }>;
+    widening?: {
+      appliedTier?: string;
+      wasWidened?: boolean;
+      reason?: string;
+    };
   };
   error?: string;
   startedAt: string;
@@ -116,9 +137,9 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     isStreamingRef.current = isStreaming;
   }, [isStreaming]);
 
+  // Connect socket on mount (regardless of conversationId) so the
+  // connection pill shows "Jerry Online" immediately.
   useEffect(() => {
-    if (!conversationId) return;
-
     const socket = io(API_BASE_URL, {
       transports: ['websocket', 'polling'],
       timeout: 10000,
@@ -126,7 +147,10 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
 
     socket.on('connect', () => {
       setConnectionStatus('connected');
-      socket.emit('chat:join', conversationId);
+      // Join room if we already have a conversation
+      if (conversationIdRef.current) {
+        socket.emit('chat:join', conversationIdRef.current);
+      }
     });
 
     socket.on('disconnect', () => {
@@ -148,11 +172,11 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       }
     });
 
-    socket.on('chat:tool_use', (data: { conversationId: string; tool: string; input: any }) => {
+    socket.on('chat:tool_use', (data: { conversationId: string; tool: string; input: any; toolCallId?: string }) => {
       if (data.conversationId === conversationIdRef.current) {
         setIsThinking(false);
         const newStep: ToolStep = {
-          id: `${data.tool}-${Date.now()}`,
+          id: data.toolCallId || `${data.tool}-${Date.now()}`,
           tool: data.tool,
           input: data.input,
           status: 'running',
@@ -162,20 +186,24 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       }
     });
 
-    socket.on('chat:tool_result', (data: { conversationId: string; tool: string; result: any }) => {
+    socket.on('chat:tool_result', (data: { conversationId: string; tool: string; result: any; toolCallId?: string }) => {
       if (data.conversationId === conversationIdRef.current) {
-        setToolSteps(prev => prev.map(step =>
-          step.tool === data.tool && step.status === 'running'
+        setToolSteps(prev => prev.map(step => {
+          // Match by toolCallId when available, fall back to name-based matching
+          const isMatch = data.toolCallId
+            ? step.id === data.toolCallId
+            : step.tool === data.tool && step.status === 'running';
+          return isMatch
             ? { ...step, status: 'done' as const, result: data.result, completedAt: Date.now() }
-            : step
-        ));
+            : step;
+        }));
       }
     });
 
     socket.on('chat:done', async (data: { conversationId: string }) => {
       if (data.conversationId === conversationIdRef.current) {
-        // Capture the streamed content as a temporary assistant message
-        // so it stays visible while we reload from server
+        // Promote streamed content to a temp assistant message so it stays
+        // visible while we silently merge from server.
         setStreamingMessage(prev => {
           if (prev) {
             setMessages(msgs => [
@@ -194,8 +222,20 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
         setIsStreaming(false);
         setIsThinking(false);
         setToolSteps([]);
-        // Reload replaces temp messages with real server data
-        await loadMessages(conversationIdRef.current, true);
+        // Silent merge: only replace if server data is newer & complete
+        try {
+          const convId = conversationIdRef.current;
+          if (convId) {
+            const resp = await api.chat.getConversation(convId);
+            if (resp.success && resp.data?.messages) {
+              const serverMsgs: ChatMessage[] = resp.data.messages;
+              // Only replace if server has at least as many messages (includes the assistant reply)
+              setMessages(prev => serverMsgs.length >= prev.length ? serverMsgs : prev);
+            }
+          }
+        } catch {
+          // Silent fail — temp message stays visible (graceful degradation)
+        }
       }
     });
 
@@ -232,7 +272,10 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
           steps: data.steps || [],
           startedAt: data.startedAt || new Date().toISOString(),
         };
-        setActiveWorkflows(prev => [...prev, newWorkflow]);
+        setActiveWorkflows(prev => {
+          if (prev.some(w => w.workflowId === data.workflowId)) return prev;
+          return [...prev, newWorkflow];
+        });
       }
     });
 
@@ -603,45 +646,44 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     return () => {
       pendingTimeoutsRef.current.forEach(clearTimeout);
       pendingTimeoutsRef.current = [];
-      socket.emit('chat:leave', conversationId);
+      if (conversationIdRef.current) {
+        socket.emit('chat:leave', conversationIdRef.current);
+      }
       socket.disconnect();
       socketRef.current = null;
       setConnectionStatus('disconnected');
     };
+  }, []); // Mount once — no conversationId dependency
+
+  // Join/leave rooms when conversationId changes
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket?.connected) return;
+
+    if (conversationId) {
+      socket.emit('chat:join', conversationId);
+    }
+
+    return () => {
+      if (conversationId && socket?.connected) {
+        socket.emit('chat:leave', conversationId);
+      }
+    };
   }, [conversationId]);
 
   useEffect(() => {
+    setMessages([]);
+    setActiveWorkflows([]);
+    setActiveJobs([]);
+    setStreamingMessage('');
+    setToolSteps([]);
+    setIsThinking(false);
+    completedJobIds.current = new Set();
     if (conversationId) {
       loadMessages(conversationId);
-    } else {
-      setMessages([]);
-      setActiveWorkflows([]);
-      setActiveJobs([]);
+      loadActivity(conversationId);
     }
   }, [conversationId]);
-
-  // Auto-clean completed/failed workflows and jobs after 60 seconds
-  useEffect(() => {
-    const cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      setActiveWorkflows(prev => prev.filter(wf => {
-        if (wf.status === 'completed' || wf.status === 'failed' || wf.status === 'cancelled') {
-          const completedAt = wf.completedAt ? new Date(wf.completedAt).getTime() : now;
-          return now - completedAt < 60000;
-        }
-        return true;
-      }));
-      setActiveJobs(prev => prev.filter(job => {
-        if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
-          const completedAt = job.completedAt ? new Date(job.completedAt).getTime() : now;
-          return now - completedAt < 60000;
-        }
-        return true;
-      }));
-    }, 30000); // Check every 30 seconds
-
-    return () => clearInterval(cleanupInterval);
-  }, []);
 
   const loadMessages = async (convId: string, force = false) => {
     try {
@@ -658,6 +700,105 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       toast({ title: 'Failed to load messages', variant: 'destructive' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /**
+   * Hydrate JobsPanel + WorkflowProgress with historical activity for the
+   * conversation. WebSocket events only cover the current session, so without
+   * this the user sees an empty Jobs panel after navigating away and back.
+   */
+  const loadActivity = async (convId: string) => {
+    try {
+      const data = await api.chat.getConversationActivity(convId);
+      if (!data.success || !data.data) {
+        console.warn('[useChat] loadActivity: malformed response', data);
+        return;
+      }
+      const { workflows = [], permitSearches = [], importJobs = [] } = data.data;
+      console.info('[useChat] hydrated activity', {
+        convId,
+        workflows: workflows.length,
+        permitSearches: permitSearches.length,
+        importJobs: importJobs.length,
+      });
+
+      // Workflows → ActiveWorkflow
+      if (workflows.length > 0) {
+        const mappedWfs: ActiveWorkflow[] = workflows.map((w: any) => ({
+          workflowId: w.id,
+          name: w.name,
+          status: (w.status || 'completed').toLowerCase() as ActiveWorkflow['status'],
+          totalSteps: w.totalSteps || (w.steps?.length ?? 0),
+          completedSteps: w.completedSteps ?? 0,
+          steps: (w.steps || []).map((s: any) => ({
+            order: s.order,
+            name: s.name,
+            action: s.action,
+            status: (s.status || 'pending').toLowerCase(),
+            progress: s.progress,
+            progressTotal: s.progressTotal,
+            error: s.error,
+          })),
+          startedAt: w.startedAt || w.createdAt,
+          completedAt: w.completedAt || undefined,
+        }));
+        setActiveWorkflows((prev) => {
+          // De-dupe with anything streamed in via socket already.
+          const seen = new Set(prev.map((w) => w.workflowId));
+          return [...prev, ...mappedWfs.filter((w) => !seen.has(w.workflowId))];
+        });
+      }
+
+      // Permit searches + Import jobs → ActiveJob
+      const jobs: ActiveJob[] = [];
+      for (const ps of permitSearches) {
+        jobs.push({
+          jobId: ps.id,
+          jobType: 'permit:search',
+          status: (ps.status || 'completed').toLowerCase() as ActiveJob['status'],
+          startedAt: ps.startedAt || ps.createdAt,
+          completedAt: ps.completedAt || undefined,
+          result: {
+            total: ps.totalFound ?? 0,
+            permitType: ps.permitType,
+            city: ps.city,
+          },
+        });
+      }
+      for (const ij of importJobs) {
+        const meta = (ij.metadata || {}) as any;
+        const rawType = String(meta.jobType || ij.type || 'JOB');
+        // Frontend label resolver (`getLabels`) is case-insensitive and matches
+        // substrings — pass the raw type through unchanged.
+        const jobType = rawType.toLowerCase().includes('homeowner')
+          ? 'homeowner:search'
+          : rawType;
+        const wideningInMeta = meta.widening || undefined;
+        jobs.push({
+          jobId: ij.id,
+          jobType,
+          status: (ij.status || 'completed').toLowerCase() as ActiveJob['status'],
+          startedAt: ij.startedAt || ij.createdAt,
+          completedAt: ij.completedAt || undefined,
+          result: {
+            total: ij.totalRecords ?? 0,
+            city: meta.city,
+            ...(wideningInMeta && { widening: wideningInMeta }),
+          },
+        });
+      }
+
+      if (jobs.length > 0) {
+        setActiveJobs((prev) => {
+          const seen = new Set(prev.map((j) => j.jobId));
+          return [...prev, ...jobs.filter((j) => !seen.has(j.jobId))];
+        });
+      }
+    } catch (error) {
+      // Best-effort hydration — don't toast on failure, but make the failure
+      // visible in DevTools so we can diagnose missing-card reports.
+      console.warn('[useChat] loadActivity failed', { convId, error });
     }
   };
 

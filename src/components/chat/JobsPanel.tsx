@@ -76,25 +76,23 @@ const statusColors: Record<string, string> = {
 export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: JobsPanelProps) => {
   const navigate = useNavigate();
 
+  const runningWorkflows = activeWorkflows.filter(w => w.status === 'running' || w.status === 'pending');
+  const completedWorkflows = activeWorkflows.filter(w => w.status === 'completed' || w.status === 'failed' || w.status === 'cancelled');
+  const runningJobs = activeJobs.filter(j => j.status === 'started' || j.status === 'progress' || j.status === 'paused');
+  const completedJobs = activeJobs.filter(j => j.status === 'completed' || j.status === 'failed' || j.status === 'cancelled');
+  const runningCount = runningWorkflows.length + runningJobs.length;
+
   if (!sidebarOpen) {
     return (
       <div className="flex flex-col items-center py-4 gap-3">
-        {activeWorkflows.filter(w => w.status === 'running').map(wf => (
-          <div key={wf.workflowId} className="relative" title={wf.name}>
+        {runningCount > 0 && (
+          <div className="relative" title={`${runningCount} running`}>
             <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
           </div>
-        ))}
-        {activeJobs.filter(j => j.status === 'started' || j.status === 'progress').map(j => (
-          <div key={j.jobId} className="relative" title={j.jobType || 'Job'}>
-            <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
-          </div>
-        ))}
+        )}
       </div>
     );
   }
-
-  const runningWorkflows = activeWorkflows.filter(w => w.status === 'running' || w.status === 'pending');
-  const completedWorkflows = activeWorkflows.filter(w => w.status === 'completed' || w.status === 'failed' || w.status === 'cancelled');
 
   return (
     <div className="flex flex-col h-full bg-sidebar text-foreground">
@@ -105,60 +103,21 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
 
       <ScrollArea className="flex-1">
         <div className="px-3 pb-3 space-y-1">
-          {/* Active Workflows from chat */}
-          {runningWorkflows.length > 0 && (
-            <>
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-2 pb-1">
-                Active Workflows
-              </div>
-              {runningWorkflows.map(wf => (
-                <div
-                  key={wf.workflowId}
-                  className="p-2.5 rounded-lg bg-accent/50 border border-border space-y-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin shrink-0" />
-                    <span className="text-[12px] font-medium truncate flex-1">{wf.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1 bg-card rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 rounded-full transition-all"
-                        style={{ width: `${wf.totalSteps > 0 ? (wf.completedSteps / wf.totalSteps) * 100 : 0}%` }}
-                      />
-                    </div>
-                    <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                      {wf.completedSteps}/{wf.totalSteps}
-                    </span>
-                  </div>
-                  {wf.steps.length > 0 && (
-                    <div className="space-y-1 ml-0.5">
-                      {wf.steps.map(step => (
-                        <div key={step.order} className="flex items-center gap-1.5">
-                          <StatusIcon status={step.status} />
-                          <span className={cn(
-                            "text-[11px] truncate",
-                            step.status === 'running' ? 'text-foreground' : 'text-muted-foreground',
-                            step.status === 'completed' && 'text-emerald-400/70',
-                          )}>
-                            {step.name}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </>
+          {runningCount > 0 && (
+            <div className="flex items-center gap-2 px-2.5 py-2 mt-1 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin shrink-0" />
+              <span className="text-[11px] text-muted-foreground">
+                {runningCount} {runningCount === 1 ? 'task' : 'tasks'} running in chat
+              </span>
+            </div>
           )}
 
-          {/* Socket-tracked jobs (permit searches, etc.) */}
-          {activeJobs.length > 0 && (
+          {completedJobs.length > 0 && (
             <>
               <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-3 pb-1">
-                Chat Jobs
+                Recent Jobs
               </div>
-              {activeJobs.map(job => (
+              {completedJobs.map(job => (
                 <div
                   key={job.jobId}
                   role="button"
@@ -184,7 +143,6 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
             </>
           )}
 
-          {/* Completed workflows */}
           {completedWorkflows.length > 0 && (
             <>
               <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-3 pb-1">
@@ -210,8 +168,7 @@ export const JobsPanel = ({ activeWorkflows, activeJobs, sidebarOpen = true }: J
             </>
           )}
 
-          {/* Empty state */}
-          {activeWorkflows.length === 0 && activeJobs.length === 0 && (
+          {runningCount === 0 && completedJobs.length === 0 && completedWorkflows.length === 0 && (
             <div className="text-center py-8">
               <Zap className="w-5 h-5 text-border mx-auto mb-2" />
               <p className="text-xs text-muted-foreground">No recent jobs</p>

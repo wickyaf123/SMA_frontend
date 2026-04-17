@@ -684,6 +684,16 @@ export const api = {
     getConversation: (id: string) =>
       request<{ success: boolean; data: any }>(`/api/v1/chat/conversations/${id}`),
 
+    getConversationActivity: (id: string) =>
+      request<{
+        success: boolean;
+        data: {
+          workflows: any[];
+          permitSearches: any[];
+          importJobs: any[];
+        };
+      }>(`/api/v1/chat/conversations/${id}/activity`),
+
     deleteConversation: (id: string) =>
       request<{ success: boolean }>(`/api/v1/chat/conversations/${id}`, { method: 'DELETE' }),
 

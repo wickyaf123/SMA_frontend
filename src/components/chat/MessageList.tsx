@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { MessageBubble, ChatMessage } from './MessageBubble';
 import { AgentSteps, ToolStep } from './AgentSteps';
+import { ProtocolBreadcrumb } from './ProtocolBreadcrumb';
 import { WorkflowProgress } from './WorkflowProgress';
 import { JobNotificationCard } from './JobNotificationCard';
 import { SearchProgressIndicator } from './SearchProgressIndicator';
@@ -179,9 +180,7 @@ export const MessageList = ({
 
   const filteredMessages = messages.filter(m => {
     if (m.role === 'tool_result') return false;
-    // Hide protocol messages (BUTTON:, CONFIRM:, FORM:, SYSTEM_EVENT:) from display
-    if (m.role === 'user' && /^(BUTTON|CONFIRM|FORM|SYSTEM_EVENT|CANCEL_WORKFLOW):/.test(m.content)) return false;
-    // Hide empty assistant messages from tool-use rounds (no visible text)
+    if (m.role === 'user' && /^SYSTEM_EVENT:/.test(m.content)) return false;
     if (m.role === 'assistant' && !m.content.trim()) return false;
     return true;
   });
@@ -311,7 +310,6 @@ export const MessageList = ({
         <div className="flex flex-col space-y-5 flex-1">
           {filteredMessages.map((message) => {
             if (collapsedIds.has(message.id)) {
-              // Extract city from the no-results message
               const cityMatch = message.content.match(/in\s+([A-Za-z\s]+?)(?:\s+completed|\s*\.|,)/);
               const city = cityMatch?.[1]?.trim() || 'previous area';
               return (
@@ -319,6 +317,9 @@ export const MessageList = ({
                   Previous search: no results for {city}
                 </div>
               );
+            }
+            if (message.role === 'user' && /^(BUTTON|CONFIRM|FORM|CANCEL_WORKFLOW):/.test(message.content)) {
+              return <ProtocolBreadcrumb key={message.id} message={message} />;
             }
             return (
               <MessageBubble
@@ -336,7 +337,6 @@ export const MessageList = ({
             <AgentSteps steps={toolSteps} isThinking={isThinking && !streamingMessage && toolSteps.length === 0} />
           )}
 
-          {/* Active workflow progress cards */}
           {activeWorkflows.length > 0 && activeWorkflows.map((workflow) => (
             <div key={workflow.workflowId} className="flex gap-3 max-w-[90%] mr-auto">
               <div className="w-8 shrink-0" />
@@ -353,7 +353,6 @@ export const MessageList = ({
             </div>
           ))}
 
-          {/* Active job notification cards */}
           {activeJobs.length > 0 && activeJobs.map((job) => (
             <JobNotificationCard
               key={job.jobId}

@@ -16,6 +16,9 @@ import {
   Clock,
   Pause,
   Play,
+  ChevronDown,
+  ChevronRight,
+  Home,
 } from 'lucide-react';
 import type { ActiveJob } from '@/hooks/useChat';
 
@@ -55,6 +58,159 @@ const PHASE_CONFIG = {
 
 const PHASE_ORDER: Array<keyof typeof PHASE_CONFIG> = ['searching', 'importing', 'enriching', 'building_sheet'];
 
+/**
+ * Maps a backend `jobType` string to a UI label set. Different jobs render
+ * different copy — a homeowner search returning 0 should NOT be labelled
+ * "No permit contractors found."
+ */
+type JobLabelSet = {
+  noun: string;          // "homeowner" | "contractor" | "job"
+  pluralNoun: string;    // "homeowners" | "contractors" | "jobs"
+  runningTitle: string;
+  pausedTitle: string;
+  emptyTitle: string;
+  emptyDescription: (city: string) => string;
+  successTitle: string;
+  successDescription: (count: number, city: string) => string;
+  emptyTips: string[];
+};
+
+const PERMIT_LABELS: JobLabelSet = {
+  noun: 'contractor',
+  pluralNoun: 'contractors',
+  runningTitle: 'Permit Search In Progress',
+  pausedTitle: 'Permit Search Paused',
+  emptyTitle: 'No Permits Found',
+  emptyDescription: (city) => `No permit contractors found${city ? ` in ${city}` : ''}`,
+  successTitle: 'Permit Search Complete',
+  successDescription: (count, city) =>
+    `Found ${count.toLocaleString()} contractors${city ? ` in ${city}` : ''}`,
+  emptyTips: [
+    'Search a nearby or larger city',
+    'Try a different permit type (HVAC, electrical, roofing, etc.)',
+    'Widen the date range',
+  ],
+};
+
+const HOMEOWNER_LABELS: JobLabelSet = {
+  noun: 'homeowner',
+  pluralNoun: 'homeowners',
+  runningTitle: 'Homeowner Search In Progress',
+  pausedTitle: 'Homeowner Search Paused',
+  emptyTitle: 'No Matching Homeowners',
+  emptyDescription: (city) =>
+    `No homeowners matched the requested filters${city ? ` in ${city}` : ''} — even after widening to neighboring areas.`,
+  successTitle: 'Homeowner Search Complete',
+  successDescription: (count, city) =>
+    `Found ${count.toLocaleString()} homeowners${city ? ` in ${city}` : ''}`,
+  emptyTips: [
+    'Try a different city or relax the property-value range',
+    'Choose different permit signals (e.g. roofing, solar, ADU, storm)',
+    'Widen the timeline (e.g. last 2-3 years)',
+  ],
+};
+
+const ENRICH_LABELS: JobLabelSet = {
+  noun: 'contact',
+  pluralNoun: 'contacts',
+  runningTitle: 'Enrichment In Progress',
+  pausedTitle: 'Enrichment Paused',
+  emptyTitle: 'Nothing to Enrich',
+  emptyDescription: () => 'No contacts pending enrichment.',
+  successTitle: 'Enrichment Complete',
+  successDescription: (count) =>
+    `Enriched ${count.toLocaleString()} contacts.`,
+  emptyTips: ['Run a scrape first to add contacts to the queue'],
+};
+
+const VALIDATE_LABELS: JobLabelSet = {
+  noun: 'contact',
+  pluralNoun: 'contacts',
+  runningTitle: 'Email/Phone Validation Running',
+  pausedTitle: 'Validation Paused',
+  emptyTitle: 'Nothing to Validate',
+  emptyDescription: () => 'No contacts pending validation.',
+  successTitle: 'Validation Complete',
+  successDescription: (count) =>
+    `Validated ${count.toLocaleString()} contacts.`,
+  emptyTips: ['Run a scrape or import first'],
+};
+
+const MERGE_LABELS: JobLabelSet = {
+  noun: 'duplicate',
+  pluralNoun: 'duplicates',
+  runningTitle: 'Deduping Contacts',
+  pausedTitle: 'Dedupe Paused',
+  emptyTitle: 'No Duplicates Found',
+  emptyDescription: () => 'No duplicate contacts to merge.',
+  successTitle: 'Dedupe Complete',
+  successDescription: (count) =>
+    `Merged ${count.toLocaleString()} duplicate records.`,
+  emptyTips: [],
+};
+
+const AUTO_ENROLL_LABELS: JobLabelSet = {
+  noun: 'contact',
+  pluralNoun: 'contacts',
+  runningTitle: 'Auto-Enrolling Contacts',
+  pausedTitle: 'Auto-Enroll Paused',
+  emptyTitle: 'Nothing to Enroll',
+  emptyDescription: () => 'No validated contacts queued for enrollment.',
+  successTitle: 'Auto-Enroll Complete',
+  successDescription: (count) =>
+    `Enrolled ${count.toLocaleString()} contacts into campaigns.`,
+  emptyTips: ['Validate contacts first', 'Confirm campaigns are active'],
+};
+
+const CONNECTION_LABELS: JobLabelSet = {
+  noun: 'connection',
+  pluralNoun: 'connections',
+  runningTitle: 'Resolving Connections',
+  pausedTitle: 'Connection Resolve Paused',
+  emptyTitle: 'No Connections Made',
+  emptyDescription: () => 'No new contractor↔homeowner links found.',
+  successTitle: 'Connection Resolve Complete',
+  successDescription: (count) =>
+    `Linked ${count.toLocaleString()} contractor↔homeowner pairs.`,
+  emptyTips: ['Run a homeowner scrape first'],
+};
+
+function getLabels(jobType?: string): JobLabelSet {
+  const t = (jobType || '').toLowerCase();
+  if (t.includes('homeowner')) return HOMEOWNER_LABELS;
+  if (t.includes('enrich')) return ENRICH_LABELS;
+  if (t.includes('validate')) return VALIDATE_LABELS;
+  if (t.includes('merge') || t.includes('dedup')) return MERGE_LABELS;
+  if (t.includes('enroll')) return AUTO_ENROLL_LABELS;
+  if (t.includes('connection')) return CONNECTION_LABELS;
+  return PERMIT_LABELS;
+}
+
+/**
+ * Display-friendly city label.
+ * "los_angeles_ca" → "Los Angeles, CA"
+ * "Scottsdale, AZ" / "Phoenix" → returned unchanged
+ * "" / null → ""
+ */
+function humanizeCity(raw?: string | null): string {
+  if (!raw) return '';
+  const s = String(raw).trim();
+  if (s.includes(',')) return s; // already formatted "City, ST"
+  if (!/[_-]/.test(s)) {
+    // Single-word (e.g. "Phoenix") — title-case it
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  }
+  const parts = s.split(/[_-]/).filter(Boolean);
+  let stateAbbr = '';
+  if (parts.length > 1 && parts[parts.length - 1].length === 2) {
+    stateAbbr = parts.pop()!.toUpperCase();
+  }
+  const city = parts
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+    .join(' ');
+  return stateAbbr ? `${city}, ${stateAbbr}` : city;
+}
+
 export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationCardProps) => {
   const navigate = useNavigate();
   const { status, result, error, progress } = job;
@@ -63,8 +219,9 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
   const isRunning = status === 'started' || status === 'progress' || isPaused;
   const elapsedStr = useElapsedTime(job.startedAt, isRunning && !isPaused);
 
+  const labels = getLabels(job.jobType);
   const permitType = progress?.permitType || result?.permitType || 'permit';
-  const city = progress?.city || result?.city || '';
+  const city = humanizeCity(progress?.city || result?.city || '');
 
   const currentPhase = progress?.phase || 'searching';
   const phaseInfo = PHASE_CONFIG[currentPhase];
@@ -93,10 +250,12 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">
-                    {isPaused ? 'Permit Search Paused' : 'Permit Search In Progress'}
+                    {isPaused ? labels.pausedTitle : labels.runningTitle}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {permitType} permits{city ? ` in ${city}` : ''}
+                    {labels.noun === 'homeowner'
+                      ? `Looking for homeowners${city ? ` in ${city}` : ''}`
+                      : `${permitType} permits${city ? ` in ${city}` : ''}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -216,9 +375,9 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
               <div className="flex items-center gap-3">
                 <SearchX className="w-5 h-5 text-amber-500 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">No Permits Found</p>
+                  <p className="text-sm font-medium">{labels.emptyTitle}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    No {permitType} contractors found{city ? ` in ${city}` : ''}
+                    {labels.emptyDescription(city)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -236,9 +395,9 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
                   Try adjusting your search:
                 </p>
                 <ul className="text-xs text-muted-foreground space-y-1">
-                  <li>• Search a nearby or larger city</li>
-                  <li>• Try a different permit type (HVAC, electrical, roofing, etc.)</li>
-                  <li>• Widen the date range</li>
+                  {labels.emptyTips.map((tip) => (
+                    <li key={tip}>• {tip}</li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -250,11 +409,21 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Permit Search Complete</p>
+                  <p className="text-sm font-medium">{labels.successTitle}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Found {result?.total?.toLocaleString() ?? 0} {permitType} contractors
-                    {city ? ` in ${city}` : ''}
+                    {labels.successDescription(result?.total ?? 0, city)}
                   </p>
+                  {(() => {
+                    const widening = (result as any)?.widening as
+                      | { wasWidened?: boolean; reason?: string; appliedTier?: string }
+                      | undefined;
+                    if (!widening?.wasWidened || !widening.reason) return null;
+                    return (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                        Filters widened (Tier {widening.appliedTier}): {widening.reason}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -291,6 +460,16 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
                       <p className="text-[10px] text-muted-foreground">Incomplete</p>
                     </div>
                   </div>
+
+                  {/* Homeowner leads table (homeowner:search jobs) */}
+                  {result.homeowners && result.homeowners.length > 0 && (
+                    <HomeownerLeadsTable
+                      homeowners={result.homeowners}
+                      total={result.total ?? 0}
+                      permitOnlyCount={result.permitOnlyCount ?? 0}
+                      onOpenInLeads={() => navigate('/classic/leads?source=homeowner')}
+                    />
+                  )}
 
                   {/* Contacts table */}
                   {result.contacts && result.contacts.length > 0 && (
@@ -408,3 +587,117 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
     </div>
   );
 };
+
+interface HomeownerLeadRow {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  street?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  permitType?: string | null;
+  permitDate?: string | null;
+  propertyValue?: number | null;
+  isPermitOnlyLead?: boolean;
+}
+
+function HomeownerLeadsTable({
+  homeowners,
+  total,
+  permitOnlyCount,
+  onOpenInLeads,
+}: {
+  homeowners: HomeownerLeadRow[];
+  total: number;
+  permitOnlyCount: number;
+  onOpenInLeads: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const truncatedCount = total - homeowners.length;
+
+  return (
+    <div className="border border-border/50 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-muted/40 hover:bg-muted/60 text-xs font-medium transition-colors"
+        aria-expanded={expanded}
+        aria-controls="homeowner-leads-table"
+      >
+        <div className="flex items-center gap-2">
+          {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          <Home className="w-3.5 h-3.5 text-muted-foreground" />
+          <span>View leads ({Math.min(homeowners.length, total)} of {total.toLocaleString()})</span>
+        </div>
+        {permitOnlyCount > 0 && (
+          <span className="text-[10px] text-amber-600 dark:text-amber-400">
+            {permitOnlyCount} need enrichment (no email/phone yet)
+          </span>
+        )}
+      </button>
+
+      {expanded && (
+        <div id="homeowner-leads-table" className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-muted/30 border-b border-border/50">
+                <th className="text-left px-2.5 py-1.5 font-medium text-muted-foreground">Name</th>
+                <th className="text-left px-2.5 py-1.5 font-medium text-muted-foreground">Address</th>
+                <th className="text-left px-2.5 py-1.5 font-medium text-muted-foreground">Permit</th>
+                <th className="text-right px-2.5 py-1.5 font-medium text-muted-foreground">Value</th>
+                <th className="text-left px-2.5 py-1.5 font-medium text-muted-foreground">Contact</th>
+              </tr>
+            </thead>
+            <tbody>
+              {homeowners.map((h, i) => {
+                const fullAddr = [h.street, h.city, h.state, h.zipCode].filter(Boolean).join(', ');
+                const contact = h.email || h.phone || (h.isPermitOnlyLead ? 'needs enrichment' : '—');
+                return (
+                  <tr
+                    key={(h.id || '') + i}
+                    className="border-b border-border/30 last:border-0 hover:bg-muted/40 transition-colors"
+                  >
+                    <td className="px-2.5 py-1.5 font-medium truncate max-w-[140px]">
+                      {h.name || '—'}
+                    </td>
+                    <td className="px-2.5 py-1.5 text-muted-foreground truncate max-w-[200px]" title={fullAddr}>
+                      {fullAddr || '—'}
+                    </td>
+                    <td className="px-2.5 py-1.5 text-muted-foreground truncate max-w-[140px]" title={h.permitType || ''}>
+                      {h.permitType || '—'}
+                      {h.permitDate ? <span className="block text-[9px] opacity-60">{h.permitDate}</span> : null}
+                    </td>
+                    <td className="px-2.5 py-1.5 text-muted-foreground text-right tabular-nums">
+                      {h.propertyValue != null ? `$${Math.round(h.propertyValue).toLocaleString()}` : '—'}
+                    </td>
+                    <td className="px-2.5 py-1.5 text-muted-foreground truncate max-w-[160px]" title={contact}>
+                      {h.isPermitOnlyLead ? (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400">needs enrichment</span>
+                      ) : (
+                        contact
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {truncatedCount > 0 && (
+            <div className="px-3 py-2 bg-muted/20 text-[10px] text-muted-foreground flex items-center justify-between">
+              <span>Showing {homeowners.length} of {total.toLocaleString()} leads</span>
+              <button
+                type="button"
+                onClick={onOpenInLeads}
+                className="text-primary hover:underline"
+              >
+                View all in Leads →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -273,9 +273,9 @@ export const ChatLayout = () => {
           // Desktop: fixed width with smooth transition
           'md:transition-all md:duration-300',
           sidebarOpen
-            ? 'md:w-[260px] md:min-w-[260px] md:max-w-[260px]'
+            ? 'md:w-[300px] md:min-w-[300px] md:max-w-[300px]'
             : 'md:w-[68px] md:min-w-[68px] md:max-w-[68px] md:overflow-hidden',
-          'w-[280px]',
+          'w-[300px]',
         )}
       >
         {/* Brand */}
