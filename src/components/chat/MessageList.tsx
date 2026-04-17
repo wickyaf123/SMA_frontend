@@ -210,46 +210,12 @@ export const MessageList = ({
   return (
     <ScrollArea className="flex-1 px-4 relative" ref={scrollAreaRef}>
       <div className="max-w-3xl mx-auto py-6 space-y-5 min-h-full flex flex-col">
-        {/* Loading skeleton */}
-        {isLoading && filteredMessages.length === 0 && (
-          <div className="flex flex-col space-y-5 flex-1 py-4">
-            {/* Skeleton assistant message */}
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0" />
-              <div className="flex flex-col gap-2 max-w-[70%]">
-                <div className="h-4 w-64 bg-muted animate-pulse rounded-lg" />
-                <div className="h-4 w-48 bg-muted animate-pulse rounded-lg" />
-                <div className="h-3 w-20 bg-muted/60 animate-pulse rounded-lg mt-1" />
-              </div>
-            </div>
-            {/* Skeleton user message */}
-            <div className="flex gap-4 flex-row-reverse">
-              <div className="flex flex-col gap-2 items-end max-w-[60%]">
-                <div className="h-10 w-52 bg-muted animate-pulse rounded-3xl" />
-                <div className="h-3 w-16 bg-muted/60 animate-pulse rounded-lg" />
-              </div>
-            </div>
-            {/* Skeleton assistant message */}
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0" />
-              <div className="flex flex-col gap-2 max-w-[75%]">
-                <div className="h-4 w-72 bg-muted animate-pulse rounded-lg" />
-                <div className="h-4 w-56 bg-muted animate-pulse rounded-lg" />
-                <div className="h-4 w-40 bg-muted animate-pulse rounded-lg" />
-                <div className="h-3 w-20 bg-muted/60 animate-pulse rounded-lg mt-1" />
-              </div>
-            </div>
-            {/* Skeleton user message */}
-            <div className="flex gap-4 flex-row-reverse">
-              <div className="flex flex-col gap-2 items-end max-w-[60%]">
-                <div className="h-10 w-36 bg-muted animate-pulse rounded-3xl" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {filteredMessages.length === 0 && !isStreaming && !isLoading && (
+        {/* Empty state — always shown for any chat without messages, even
+             while loadMessages is in flight. Removed the previous skeleton
+             gate (`!isLoading`) because slow loads were leaving users on a
+             blank screen with no actionable presets. For chats that DO have
+             history, messages render below as soon as they arrive. */}
+        {filteredMessages.length === 0 && !isStreaming && (
           <div className="flex-1 flex flex-col items-center justify-center text-center pb-12">
             <h2 className="text-3xl font-medium mb-8 text-foreground">What can I help with?</h2>
 
