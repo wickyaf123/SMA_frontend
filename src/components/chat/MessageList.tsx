@@ -315,6 +315,8 @@ export const MessageList = ({
                 completedSteps={workflow.completedSteps}
                 startedAt={workflow.startedAt}
                 onCancel={handleCancelWorkflow}
+                stepSummary={workflow.stepSummary}
+                error={workflow.error}
               />
             </div>
           ))}

@@ -19,6 +19,14 @@ export interface WorkflowStep {
   error?: string;
 }
 
+export interface WorkflowStepSummary {
+  order: number;
+  name: string;
+  status: 'completed' | 'failed' | 'skipped';
+  error?: string | null;
+  reason?: string | null;
+}
+
 export interface WorkflowProgressProps {
   workflowId: string;
   name: string;
@@ -28,6 +36,10 @@ export interface WorkflowProgressProps {
   completedSteps: number;
   startedAt?: string;
   onCancel: (workflowId: string) => void;
+  /** Terminal per-step summary — present once workflow is done. */
+  stepSummary?: WorkflowStepSummary[];
+  /** Top-level error message when status === 'failed'. */
+  error?: string | null;
 }
 
 const statusBadgeConfig: Record<
@@ -121,6 +133,8 @@ export const WorkflowProgress = ({
   completedSteps,
   startedAt,
   onCancel,
+  stepSummary,
+  error,
 }: WorkflowProgressProps) => {
   const [elapsed, setElapsed] = useState('');
   const isActive = status === 'running' || status === 'paused';
@@ -177,27 +191,78 @@ export const WorkflowProgress = ({
         </div>
       </CardContent>
 
-      {status === 'failed' && (
-        <div className="mx-4 mb-3 px-3 py-2 bg-destructive/10 rounded-md border border-destructive/20">
-          <p className="text-xs text-destructive font-medium">Workflow failed</p>
-          {sortedSteps
-            .filter((s) => s.status === 'failed' && s.error)
-            .map((s) => (
-              <p key={s.order} className="text-[11px] text-destructive/80 mt-0.5">
-                Step {s.order}: {s.error}
-              </p>
-            ))}
-        </div>
-      )}
+      {(() => {
+        // Compute step outcomes from stepSummary (authoritative when present)
+        // or fall back to the live `steps` array (used mid-flight).
+        const summary = stepSummary && stepSummary.length > 0
+          ? stepSummary
+          : sortedSteps.map((s) => ({
+              order: s.order,
+              name: s.name ?? `Step ${s.order}`,
+              status: s.status === 'completed' || s.status === 'failed' || s.status === 'skipped'
+                ? (s.status as 'completed' | 'failed' | 'skipped')
+                : undefined,
+              error: s.error ?? null,
+              reason: null,
+            })).filter((s) => s.status !== undefined) as WorkflowStepSummary[];
 
-      {status === 'completed' && (
-        <div className="mx-4 mb-3 px-3 py-2 bg-emerald-500/10 rounded-md border border-emerald-500/20">
-          <p className="text-xs text-emerald-600 font-medium flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Workflow completed successfully
-          </p>
-        </div>
-      )}
+        const failedCount = summary.filter((s) => s.status === 'failed').length;
+        const skippedCount = summary.filter((s) => s.status === 'skipped').length;
+        const completedCount = summary.filter((s) => s.status === 'completed').length;
+        const hasNonSuccess = failedCount > 0 || skippedCount > 0;
+
+        if (status === 'failed') {
+          return (
+            <div className="mx-4 mb-3 px-3 py-2 bg-destructive/10 rounded-md border border-destructive/20 space-y-1.5">
+              <p className="text-xs text-destructive font-medium flex items-center gap-1.5">
+                <XCircle className="w-3.5 h-3.5" />
+                Workflow failed ({completedCount} completed, {failedCount} failed, {skippedCount} skipped)
+              </p>
+              {error && (
+                <p className="text-[11px] text-destructive/80">{error}</p>
+              )}
+              {summary
+                .filter((s) => s.status !== 'completed')
+                .map((s) => (
+                  <p key={s.order} className="text-[11px] text-destructive/80">
+                    Step {s.order} ({s.name}) — {s.status}{s.reason ? `: ${s.reason}` : ''}{s.error ? `: ${s.error}` : ''}
+                  </p>
+                ))}
+            </div>
+          );
+        }
+
+        if (status === 'completed' && hasNonSuccess) {
+          return (
+            <div className="mx-4 mb-3 px-3 py-2 bg-amber-500/10 rounded-md border border-amber-500/30 space-y-1.5">
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Completed with partial success — {completedCount} succeeded, {failedCount} failed, {skippedCount} skipped
+              </p>
+              {summary
+                .filter((s) => s.status !== 'completed')
+                .map((s) => (
+                  <p key={s.order} className="text-[11px] text-amber-700 dark:text-amber-300/80">
+                    Step {s.order} ({s.name}) — {s.status}{s.reason ? `: ${s.reason}` : ''}{s.error ? `: ${s.error}` : ''}
+                  </p>
+                ))}
+            </div>
+          );
+        }
+
+        if (status === 'completed') {
+          return (
+            <div className="mx-4 mb-3 px-3 py-2 bg-emerald-500/10 rounded-md border border-emerald-500/20">
+              <p className="text-xs text-emerald-600 font-medium flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Workflow completed successfully
+              </p>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
 
       {isActive && (
         <CardFooter className="p-4 pt-2">

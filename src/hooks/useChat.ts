@@ -72,6 +72,14 @@ export interface ActiveJob {
   completedAt?: string;
 }
 
+export interface WorkflowStepSummary {
+  order: number;
+  name: string;
+  status: 'completed' | 'failed' | 'skipped';
+  error?: string | null;
+  reason?: string | null;
+}
+
 export interface ActiveWorkflow {
   workflowId: string;
   name: string;
@@ -81,6 +89,10 @@ export interface ActiveWorkflow {
   steps: WorkflowStep[];
   startedAt?: string;
   completedAt?: string;
+  /** Per-step outcome summary — only present on terminal events (completed/failed). */
+  stepSummary?: WorkflowStepSummary[];
+  /** Final error message when status === 'failed'. */
+  error?: string | null;
 }
 
 interface UseChatReturn {
@@ -438,6 +450,9 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       conversationId: string;
       workflowId: string;
       result?: any;
+      completedSteps?: number;
+      totalSteps?: number;
+      stepSummary?: WorkflowStepSummary[];
       isReplay?: boolean;
     }) => {
       if (data.conversationId === conversationIdRef.current) {
@@ -448,7 +463,13 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
           if (found) workflowName = found.name;
           return prev.map(wf =>
             wf.workflowId === data.workflowId
-              ? { ...wf, status: 'completed' as const, completedAt: new Date().toISOString() }
+              ? {
+                  ...wf,
+                  status: 'completed' as const,
+                  completedAt: new Date().toISOString(),
+                  stepSummary: data.stepSummary ?? (data.result as any)?.stepSummary ?? wf.stepSummary,
+                  completedSteps: data.completedSteps ?? wf.completedSteps,
+                }
               : wf
           );
         });
@@ -457,11 +478,19 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
         // chat rejoin) — the original completion already summarized.
         if (data.isReplay) return;
 
-        // Send workflow results to Claude for summarization
+        // Feed the stepSummary into Jerry's prompt so he explicitly calls
+        // out partial-success ("3 of 4 steps completed, 1 skipped") rather
+        // than saying "completed" for a workflow that had failures.
+        const summary = data.stepSummary ?? (data.result as any)?.stepSummary;
+        const failedOrSkipped = summary?.filter((s: WorkflowStepSummary) => s.status !== 'completed') ?? [];
+        const stepBlurb = failedOrSkipped.length > 0
+          ? ` NOTE: ${failedOrSkipped.length} of ${summary?.length ?? '?'} steps did NOT complete successfully (${failedOrSkipped.map((s: WorkflowStepSummary) => `${s.name}: ${s.status}${s.reason ? ' — ' + s.reason : ''}`).join('; ')}). You MUST explicitly call out these partial failures — do not present this as a clean success.`
+          : '';
+
         const resultSummary = data.result
           ? JSON.stringify(data.result).substring(0, 2000)
           : 'completed successfully';
-        const summaryMsg = `SYSTEM_EVENT:workflow_completed:The workflow "${workflowName}" has completed. Results: ${resultSummary}. Please summarize the key findings for the user.`;
+        const summaryMsg = `SYSTEM_EVENT:workflow_completed:The workflow "${workflowName}" has completed. Results: ${resultSummary}.${stepBlurb} Please summarize the key findings for the user.`;
         const capturedConvId = data.conversationId;
         const capturedSend = sendMessageRef.current;
         const timeoutId = setTimeout(() => {
@@ -476,11 +505,22 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     socket.on('workflow:failed', (data: {
       conversationId: string;
       workflowId: string;
+      error?: string;
+      completedSteps?: number;
+      totalSteps?: number;
+      stepSummary?: WorkflowStepSummary[];
     }) => {
       if (data.conversationId === conversationIdRef.current) {
         setActiveWorkflows(prev => prev.map(wf =>
           wf.workflowId === data.workflowId
-            ? { ...wf, status: 'failed' as const, completedAt: new Date().toISOString() }
+            ? {
+                ...wf,
+                status: 'failed' as const,
+                completedAt: new Date().toISOString(),
+                stepSummary: data.stepSummary ?? wf.stepSummary,
+                error: data.error ?? wf.error ?? null,
+                completedSteps: data.completedSteps ?? wf.completedSteps,
+              }
             : wf
         ));
       }
