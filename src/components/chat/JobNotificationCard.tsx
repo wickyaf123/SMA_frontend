@@ -370,38 +370,79 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
           )}
 
           {/* ========== COMPLETED: NO RESULTS ========== */}
-          {status === 'completed' && (result?.total ?? 0) === 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <SearchX className="w-5 h-5 text-amber-500 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{labels.emptyTitle}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {labels.emptyDescription(city)}
+          {status === 'completed' && (result?.total ?? 0) === 0 && (() => {
+            const diag = (result as any)?.diagnostics as
+              | { reason?: string; rawCount?: number; filtered?: number; duplicates?: number; appliedTier?: string | null }
+              | undefined;
+            const widening = (result as any)?.widening as
+              | { wasWidened?: boolean; reason?: string; appliedTier?: string }
+              | undefined;
+            const reason = diag?.reason || widening?.reason;
+            const rawCount = diag?.rawCount;
+            const filtered = diag?.filtered;
+            const duplicates = diag?.duplicates;
+            const showFunnel =
+              rawCount !== undefined && rawCount > 0 &&
+              ((typeof filtered === 'number' && filtered > 0) || (typeof duplicates === 'number' && duplicates > 0));
+
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <SearchX className="w-5 h-5 text-amber-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{labels.emptyTitle}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {labels.emptyDescription(city)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {elapsedStr}
+                    </span>
+                    <Badge variant="default" className="bg-amber-500 hover:bg-amber-500/80 text-[10px]">
+                      No Results
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* "Why" block — leads with the specific reason + funnel numbers */}
+                {(reason || showFunnel) && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2.5 space-y-1.5">
+                    <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                      Why this happened
+                    </p>
+                    {reason && (
+                      <p className="text-xs text-muted-foreground leading-relaxed">{reason}</p>
+                    )}
+                    {showFunnel && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Funnel: {rawCount} raw from Shovels
+                        {typeof duplicates === 'number' && duplicates > 0 ? ` · ${duplicates} duplicate` : ''}
+                        {typeof filtered === 'number' && filtered > 0 ? ` · ${filtered} rejected by relevance scorer (usually utilities or cross-industry false positives)` : ''}
+                        {' · 0 imported'}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* CTA to adjust filters and re-run */}
+                <div className="bg-muted/40 border border-border/60 rounded-lg px-3 py-2.5">
+                  <p className="text-xs font-medium text-foreground mb-1.5">
+                    Want to try again with different filters?
+                  </p>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {labels.emptyTips.map((tip) => (
+                      <li key={tip}>• {tip}</li>
+                    ))}
+                  </ul>
+                  <p className="text-[11px] text-muted-foreground/80 mt-2 italic">
+                    Ask Jerry below to re-run with your adjusted filters, or click the wizard button for a fresh search.
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {elapsedStr}
-                  </span>
-                  <Badge variant="default" className="bg-amber-500 hover:bg-amber-500/80 text-[10px]">
-                    No Results
-                  </Badge>
-                </div>
               </div>
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2.5">
-                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1.5">
-                  Try adjusting your search:
-                </p>
-                <ul className="text-xs text-muted-foreground space-y-1">
-                  {labels.emptyTips.map((tip) => (
-                    <li key={tip}>• {tip}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ========== COMPLETED: WITH RESULTS ========== */}
           {status === 'completed' && (result?.total ?? 0) > 0 && (
@@ -414,6 +455,22 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
                     {labels.successDescription(result?.total ?? 0, city)}
                   </p>
                   {(() => {
+                    // Data-source pill — distinguishes a fresh Shovels scrape
+                    // from a DB fallback or enrichment-only result. Answers
+                    // the "did we scrape or just read the DB?" question.
+                    const ds = ((result as any)?.diagnostics?.dataSource) as
+                      | 'shovels_live' | 'db_fallback' | 'none' | undefined;
+                    if (!ds || ds === 'none') return null;
+                    const label = ds === 'shovels_live'
+                      ? 'Source: live scrape from Shovels API'
+                      : 'Source: local database (Shovels had no fresh matches)';
+                    return (
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1">
+                        {label}
+                      </p>
+                    );
+                  })()}
+                  {(() => {
                     const widening = (result as any)?.widening as
                       | { wasWidened?: boolean; reason?: string; appliedTier?: string }
                       | undefined;
@@ -421,6 +478,25 @@ export const JobNotificationCard = ({ job, onPause, onResume }: JobNotificationC
                     return (
                       <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
                         Filters widened (Tier {widening.appliedTier}): {widening.reason}
+                      </p>
+                    );
+                  })()}
+                  {(() => {
+                    // When the relevance filter rejected most of what Shovels
+                    // returned, show "Found X of Y — Z filtered out" so the
+                    // user can see WHY they got a small number. Without this,
+                    // a search that finds 1 of 8 looks identical to a search
+                    // that finds 1 of 1 — very different situations.
+                    const diag = (result as any)?.diagnostics as
+                      | { rawCount?: number; filtered?: number; imported?: number }
+                      | undefined;
+                    const total = result?.total ?? 0;
+                    const raw = diag?.rawCount ?? 0;
+                    const filtered = diag?.filtered ?? 0;
+                    if (filtered <= 0 || raw <= total) return null;
+                    return (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Found {total} of {raw} — {filtered} filtered out by relevance scorer (likely cross-industry false positives)
                       </p>
                     );
                   })()}

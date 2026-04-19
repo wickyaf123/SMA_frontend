@@ -120,6 +120,23 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
   const sendMessageRef = useRef<(content: string) => void>(() => {});
   const completedJobIds = useRef<Set<string>>(new Set());
   const pendingTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
+  // Per-conversation snapshot cache so switching back to a previously-loaded
+  // chat restores instantly instead of blanking to "" and refetching. Refs
+  // that mirror current state feed this cache without triggering re-renders.
+  const conversationCacheRef = useRef<Map<string, {
+    messages: ChatMessage[];
+    activeWorkflows: ActiveWorkflow[];
+    activeJobs: ActiveJob[];
+    toolSteps: ToolStep[];
+  }>>(new Map());
+  const messagesRef = useRef<ChatMessage[]>([]);
+  const activeWorkflowsRef = useRef<ActiveWorkflow[]>([]);
+  const activeJobsRef = useRef<ActiveJob[]>([]);
+  const toolStepsRef = useRef<ToolStep[]>([]);
+  // True once the server has ack'd chat:join for the current conversation.
+  // Used to gate workflow/job triggers so their starting events don't race
+  // the room subscription.
+  const joinAckedRef = useRef<boolean>(false);
   const { toast } = useToast();
 
   // Request browser notification permission on mount
@@ -137,6 +154,29 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     isStreamingRef.current = isStreaming;
   }, [isStreaming]);
 
+  // Mirror current state into refs so the conversation-switch effect can
+  // snapshot them without making the effect depend on state (which would
+  // cause it to re-run on every message/job update).
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => { activeWorkflowsRef.current = activeWorkflows; }, [activeWorkflows]);
+  useEffect(() => { activeJobsRef.current = activeJobs; }, [activeJobs]);
+  useEffect(() => { toolStepsRef.current = toolSteps; }, [toolSteps]);
+
+  // Bounded "seen job id" tracker — prevents the completedJobIds Set from
+  // growing without bound over long single-chat sessions. 200 is more than
+  // enough to dedupe socket replays within a session; older entries evicted
+  // FIFO via Set insertion order.
+  const COMPLETED_JOB_CAP = 200;
+  const rememberCompletedJob = (jobId: string) => {
+    const set = completedJobIds.current;
+    set.add(jobId);
+    while (set.size > COMPLETED_JOB_CAP) {
+      const oldest = set.values().next().value;
+      if (oldest === undefined) break;
+      set.delete(oldest);
+    }
+  };
+
   // Connect socket on mount (regardless of conversationId) so the
   // connection pill shows "Jerry Online" immediately.
   useEffect(() => {
@@ -147,9 +187,21 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
 
     socket.on('connect', () => {
       setConnectionStatus('connected');
-      // Join room if we already have a conversation
-      if (conversationIdRef.current) {
-        socket.emit('chat:join', conversationIdRef.current);
+      // Join room if we already have a conversation. Use emitWithAck so
+      // any in-flight jobs/workflows from the previous backend instance
+      // get replayed to this socket, and we don't race POST /messages vs
+      // room subscription after a reconnect.
+      const convId = conversationIdRef.current;
+      if (convId) {
+        joinAckedRef.current = false;
+        socket
+          .emitWithAck('chat:join', convId)
+          .then(() => {
+            if (conversationIdRef.current === convId) joinAckedRef.current = true;
+          })
+          .catch(() => {
+            if (conversationIdRef.current === convId) joinAckedRef.current = true;
+          });
       }
     });
 
@@ -386,6 +438,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       conversationId: string;
       workflowId: string;
       result?: any;
+      isReplay?: boolean;
     }) => {
       if (data.conversationId === conversationIdRef.current) {
         // Find workflow name before updating status (use setter to read current state)
@@ -400,15 +453,20 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
           );
         });
 
+        // Don't re-trigger Jerry summarization for replays (page reload /
+        // chat rejoin) — the original completion already summarized.
+        if (data.isReplay) return;
+
         // Send workflow results to Claude for summarization
         const resultSummary = data.result
           ? JSON.stringify(data.result).substring(0, 2000)
           : 'completed successfully';
         const summaryMsg = `SYSTEM_EVENT:workflow_completed:The workflow "${workflowName}" has completed. Results: ${resultSummary}. Please summarize the key findings for the user.`;
         const capturedConvId = data.conversationId;
+        const capturedSend = sendMessageRef.current;
         const timeoutId = setTimeout(() => {
           if (conversationIdRef.current === capturedConvId) {
-            sendMessageRef.current(summaryMsg);
+            capturedSend(summaryMsg);
           }
         }, 1000);
         pendingTimeoutsRef.current.push(timeoutId);
@@ -441,6 +499,16 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       }
     });
 
+    // Accept an incoming job event iff it belongs to the current conversation.
+    // Previously any event without a conversationId was passed through, which
+    // let replayed old-job completions from Chat A leak into Chat B after a
+    // socket reconnect. Now we only accept unscoped events for jobs we're
+    // already tracking (i.e. we started them before the current scope).
+    const acceptJobEvent = (convId: string | undefined, jobId: string): boolean => {
+      if (convId) return convId === conversationIdRef.current;
+      return activeJobsRef.current.some((j) => j.jobId === jobId);
+    };
+
     // Job event listeners (permit search notifications)
     socket.on('job:started', (data: {
       jobId: string;
@@ -449,8 +517,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       conversationId?: string;
       result?: any;
     }) => {
-      // Only accept events for this conversation or unscoped events
-      if (data.conversationId && data.conversationId !== conversationIdRef.current) return;
+      if (!acceptJobEvent(data.conversationId, data.jobId)) return;
       setActiveJobs(prev => {
         // Deduplicate: if we already have this job, update it
         if (prev.some(j => j.jobId === data.jobId)) return prev;
@@ -471,8 +538,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       conversationId?: string;
       result?: JobProgressData;
     }) => {
-      // Only accept events for this conversation or unscoped events
-      if (data.conversationId && data.conversationId !== conversationIdRef.current) return;
+      if (!acceptJobEvent(data.conversationId, data.jobId)) return;
       setActiveJobs(prev => prev.map(job =>
         job.jobId === data.jobId
           ? {
@@ -492,8 +558,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       conversationId?: string;
       result?: any;
     }) => {
-      // Only accept events for this conversation or unscoped events
-      if (data.conversationId && data.conversationId !== conversationIdRef.current) return;
+      if (!acceptJobEvent(data.conversationId, data.jobId)) return;
       setActiveJobs(prev => {
         const exists = prev.some(j => j.jobId === data.jobId);
         if (!exists) {
@@ -515,12 +580,12 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
 
       // Don't auto-notify Jerry for replayed events (page refresh / reconnect)
       if (data.isReplay) {
-        completedJobIds.current.add(data.jobId);
+        rememberCompletedJob(data.jobId);
         return;
       }
 
       if (completedJobIds.current.has(data.jobId)) return;
-      completedJobIds.current.add(data.jobId);
+      rememberCompletedJob(data.jobId);
 
       // Toast notification for all completed jobs
       const jobLabel = data.jobType || 'Job';
@@ -540,13 +605,25 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
 
       if (data.jobType?.includes('permit') && data.result) {
         const r = data.result;
+        // Serialize the full diagnostics envelope (tiers tried, widening
+        // reason, rawCount vs imported, etc.) so Jerry can give a specific
+        // "here's why 0 results" answer instead of a generic suggestion.
+        const diagBlob = r.diagnostics ? ` Diagnostics: ${JSON.stringify(r.diagnostics).substring(0, 1500)}.` : '';
+        const wideningBlob = r.widening ? ` Widening: ${JSON.stringify(r.widening).substring(0, 500)}.` : '';
+        const ds = r.diagnostics?.dataSource;
+        const sourceBlob = ds === 'shovels_live'
+          ? ' Data came from a live Shovels API scrape.'
+          : ds === 'db_fallback'
+            ? ' Data came from our local database fallback (Shovels returned no fresh matches).'
+            : '';
         const resultSummary = r.total === 0
-          ? `SYSTEM_EVENT:job_completed:The permit search for ${r.permitType || 'permits'} in ${r.city || 'the specified area'} completed with 0 results found. No contractors matched. Please suggest alternatives to the user.`
-          : `SYSTEM_EVENT:job_completed:The permit search completed. Found ${r.total} contractors (${r.enriched || 0} enriched, ${r.incomplete || 0} incomplete) for ${r.permitType || 'permits'} in ${r.city || 'the area'}.${r.sheetUrl ? ` Google Sheet: ${r.sheetUrl}` : ''} Please summarize the results and suggest next steps.`;
+          ? `SYSTEM_EVENT:job_completed:The permit search for ${r.permitType || 'permits'} in ${r.city || 'the specified area'} returned 0 results.${diagBlob}${wideningBlob} DO NOT treat this as a failure. Briefly explain WHY (cite the diagnostics), then OFFER to re-run with specific widened filters — propose 2-3 concrete options (e.g. "Want me to widen to the last 3 years?", "Should I try adjacent cities in the same county?", "Switch from ${r.permitType || 'this'} to a broader trade?"). End with a question so the user can reply yes/no to any option. Do not suggest giving up.`
+          : `SYSTEM_EVENT:job_completed:The permit search completed. Found ${r.total} contractors (${r.enriched || 0} enriched, ${r.incomplete || 0} incomplete) for ${r.permitType || 'permits'} in ${r.city || 'the area'}.${sourceBlob}${r.sheetUrl ? ` Google Sheet: ${r.sheetUrl}` : ''} Please summarize the results, explicitly state the data source (live Shovels scrape vs local DB) so the user knows what they're looking at, and suggest next steps.`;
         const capturedConvId = data.conversationId || conversationId;
+        const capturedSend = sendMessageRef.current;
         const timeoutId = setTimeout(() => {
           if (conversationIdRef.current === capturedConvId) {
-            sendMessageRef.current(resultSummary);
+            capturedSend(resultSummary);
           }
         }, 1000);
         pendingTimeoutsRef.current.push(timeoutId);
@@ -555,13 +632,22 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       // Homeowner search completion
       if (data.jobType === 'homeowner:search' && data.result) {
         const r = data.result;
+        const diagBlob = r.diagnostics ? ` Diagnostics: ${JSON.stringify(r.diagnostics).substring(0, 1500)}.` : '';
+        const wideningBlob = r.widening ? ` Widening: ${JSON.stringify(r.widening).substring(0, 500)}.` : '';
+        const ds = r.diagnostics?.dataSource;
+        const sourceBlob = ds === 'shovels_live'
+          ? ' Data came from a live Shovels API scrape.'
+          : ds === 'db_fallback'
+            ? ' Data came from our local database fallback (Shovels returned no fresh matches — this is the last-resort tier).'
+            : '';
         const resultSummary = r.total === 0
-          ? `SYSTEM_EVENT:job_completed:The homeowner search for ${r.trade || ''} trade in ${r.city || 'the area'} completed with 0 results. Please suggest alternatives.`
-          : `SYSTEM_EVENT:job_completed:The homeowner search completed. Found ${r.total} homeowners (${r.withEmail || 0} with email, ${r.withPhone || 0} with phone) for ${r.trade || ''} trade in ${r.city || 'the area'}.${r.crossTradeSignals ? ` Cross-trade signals: ${JSON.stringify(r.crossTradeSignals)}` : ''} Please summarize results and suggest next steps.`;
+          ? `SYSTEM_EVENT:job_completed:The homeowner search for ${r.trade || ''} trade in ${r.city || 'the area'} returned 0 results.${diagBlob}${wideningBlob} DO NOT treat this as a failure. Briefly explain WHY (cite diagnostics), then OFFER to re-run with widened filters — propose 2-3 concrete options (widen the year window, try adjacent ZIPs/city, drop tag filter, or try a different trade signal). End with a question so the user can pick. Do not suggest giving up.`
+          : `SYSTEM_EVENT:job_completed:The homeowner search completed. Found ${r.total} homeowners (${r.withEmail || 0} with email, ${r.withPhone || 0} with phone) for ${r.trade || ''} trade in ${r.city || 'the area'}.${sourceBlob}${r.crossTradeSignals ? ` Cross-trade signals: ${JSON.stringify(r.crossTradeSignals)}` : ''} Please summarize results, explicitly state the data source (live Shovels scrape vs local DB) so the user knows what they're looking at, and suggest next steps.`;
         const capturedConvId = data.conversationId || conversationId;
+        const capturedSend = sendMessageRef.current;
         const timeoutId = setTimeout(() => {
           if (conversationIdRef.current === capturedConvId) {
-            sendMessageRef.current(resultSummary);
+            capturedSend(resultSummary);
           }
         }, 1000);
         pendingTimeoutsRef.current.push(timeoutId);
@@ -576,8 +662,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       conversationId?: string;
       result?: any;
     }) => {
-      // Only accept events for this conversation or unscoped events
-      if (data.conversationId && data.conversationId !== conversationIdRef.current) return;
+      if (!acceptJobEvent(data.conversationId, data.jobId)) return;
       const isCancelled = data.status === 'cancelled';
       const jobStatus = isCancelled ? 'cancelled' as const : 'failed' as const;
       setActiveJobs(prev => {
@@ -604,9 +689,10 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       if (data.jobType?.includes('permit') && !isCancelled) {
         const failMsg = `SYSTEM_EVENT:job_failed:The permit search failed. Error: ${data.error || 'Unknown error'}. Please inform the user about the specific issue and what they can do about it.`;
         const capturedConvId = data.conversationId || conversationId;
+        const capturedSend = sendMessageRef.current;
         const timeoutId = setTimeout(() => {
           if (conversationIdRef.current === capturedConvId) {
-            sendMessageRef.current(failMsg);
+            capturedSend(failMsg);
           }
         }, 1000);
         pendingTimeoutsRef.current.push(timeoutId);
@@ -616,9 +702,10 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
       if (data.jobType === 'homeowner:search' && !isCancelled) {
         const failMsg = `SYSTEM_EVENT:job_failed:The homeowner search failed. Error: ${data.error || 'Unknown error'}. Please inform the user and suggest trying again.`;
         const capturedConvId = data.conversationId || conversationId;
+        const capturedSend = sendMessageRef.current;
         const timeoutId = setTimeout(() => {
           if (conversationIdRef.current === capturedConvId) {
-            sendMessageRef.current(failMsg);
+            capturedSend(failMsg);
           }
         }, 1000);
         pendingTimeoutsRef.current.push(timeoutId);
@@ -655,30 +742,93 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     };
   }, []); // Mount once — no conversationId dependency
 
-  // Join/leave rooms when conversationId changes
+  // Join/leave rooms when conversationId changes. Uses emitWithAck so we know
+  // when the server has actually joined the room AND finished replaying any
+  // in-flight jobs/workflows. Without the ack, a workflow POST fired
+  // immediately after mount can race the server-side room subscription and
+  // the workflow:started event lands in an empty room.
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket?.connected) return;
 
     if (conversationId) {
-      socket.emit('chat:join', conversationId);
+      joinAckedRef.current = false;
+      socket
+        .emitWithAck('chat:join', conversationId)
+        .then((result: unknown) => {
+          if (conversationIdRef.current !== conversationId) return;
+          joinAckedRef.current = true;
+          if (typeof result === 'object' && result !== null && 'replayed' in result) {
+            const replayed = (result as { replayed: number }).replayed;
+            if (replayed > 0) {
+              // eslint-disable-next-line no-console
+              console.debug(`[useChat] chat:join ack — replayed ${replayed} event(s)`);
+            }
+          }
+        })
+        .catch((err) => {
+          // Server might be running an older build without ack support —
+          // fall back to treating join as successful.
+          if (conversationIdRef.current !== conversationId) return;
+          joinAckedRef.current = true;
+          // eslint-disable-next-line no-console
+          console.warn('[useChat] chat:join ack failed, assuming joined', err);
+        });
     }
 
     return () => {
       if (conversationId && socket?.connected) {
         socket.emit('chat:leave', conversationId);
       }
+      // Cancel any pending SYSTEM_EVENT timeouts scheduled for the chat
+      // being left. Without this, a 1s delayed SYSTEM_EVENT scheduled in
+      // the old chat can still fire after the user switched — the outer
+      // conversationIdRef check catches it, but canceling here makes the
+      // intent explicit and frees timers immediately.
+      pendingTimeoutsRef.current.forEach(clearTimeout);
+      pendingTimeoutsRef.current = [];
+      joinAckedRef.current = false;
     };
   }, [conversationId]);
 
   useEffect(() => {
-    setMessages([]);
-    setActiveWorkflows([]);
-    setActiveJobs([]);
+    // The cleanup function runs with the *previous* conversationId captured
+    // via closure — that's the right place to snapshot the outgoing chat.
+    return () => {
+      if (conversationId) {
+        conversationCacheRef.current.set(conversationId, {
+          messages: messagesRef.current,
+          activeWorkflows: activeWorkflowsRef.current,
+          activeJobs: activeJobsRef.current,
+          toolSteps: toolStepsRef.current,
+        });
+      }
+    };
+  }, [conversationId]);
+
+  useEffect(() => {
+    // Restore from cache if we've seen this conversation before; otherwise
+    // clear. Either way, reset transient per-conversation flags so they
+    // don't leak across chats — isStreaming in particular, because the
+    // wizard starter options are gated on `!isStreaming` in MessageList.
+    const cached = conversationId ? conversationCacheRef.current.get(conversationId) : undefined;
+    if (cached) {
+      setMessages(cached.messages);
+      setActiveWorkflows(cached.activeWorkflows);
+      setActiveJobs(cached.activeJobs);
+      setToolSteps(cached.toolSteps);
+    } else {
+      setMessages([]);
+      setActiveWorkflows([]);
+      setActiveJobs([]);
+      setToolSteps([]);
+    }
     setStreamingMessage('');
-    setToolSteps([]);
     setIsThinking(false);
+    setIsStreaming(false);
     completedJobIds.current = new Set();
+
+    // Background-refresh from server so the cache doesn't go stale.
     if (conversationId) {
       loadMessages(conversationId);
       loadActivity(conversationId);
@@ -924,12 +1074,22 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     return sendMessage(content);
   }, [hasRunningWork, sendMessage]);
 
-  // Flush message queue when work completes
+  // Flush message queue when work completes. `sendMessage` is async and can
+  // throw on transient network errors — re-queue on failure so the user's
+  // message isn't silently dropped. The toast inside sendMessage still fires
+  // to surface the error; we just don't lose the text.
   useEffect(() => {
     if (!hasRunningWork && !isStreamingRef.current && messageQueue.length > 0) {
       const [next, ...rest] = messageQueue;
       setMessageQueue(rest);
-      sendMessage(next);
+      (async () => {
+        try {
+          await sendMessage(next);
+        } catch (err) {
+          console.warn('[useChat] queued message send failed — re-queuing', err);
+          setMessageQueue((prev) => [next, ...prev]);
+        }
+      })();
     }
   }, [hasRunningWork, isStreaming, messageQueue, sendMessage]);
 

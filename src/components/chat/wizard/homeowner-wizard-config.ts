@@ -147,6 +147,7 @@ const CHANNEL_OPTIONS: WizardStepOption[] = [
   { label: 'SMS', value: 'sms', description: 'Text message outreach', icon: 'phone' },
   { label: 'Both', value: 'both', description: 'Email + SMS multi-channel', icon: 'message-circle' },
   { label: 'LinkedIn', value: 'linkedin', description: 'LinkedIn connection requests', icon: 'users' },
+  { label: 'Just pull the data', value: 'data_only', description: 'No outreach — export only', icon: 'file-text' },
 ];
 
 // ── Trade display labels ───────────────────────────────────────────────
