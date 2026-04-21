@@ -5,6 +5,7 @@ import type { ToolStep } from '@/components/chat/AgentSteps';
 import type { WorkflowStep } from '@/components/chat/WorkflowProgress';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
+import { getAccessToken } from '@/contexts/AuthContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -195,6 +196,7 @@ export function useChat({ conversationId }: UseChatOptions): UseChatReturn {
     const socket = io(API_BASE_URL, {
       transports: ['websocket', 'polling'],
       timeout: 10000,
+      auth: { token: getAccessToken() ?? undefined },
     });
 
     socket.on('connect', () => {
