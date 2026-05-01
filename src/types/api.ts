@@ -499,6 +499,13 @@ export interface UpdateSchedulesInput {
   enrollJobCron?: string;
 }
 
+export type ReplyClassification =
+  | 'BOOK_CALL'
+  | 'MORE_INFO'
+  | 'NOT_INTERESTED'
+  | 'OBJECTION'
+  | 'UNKNOWN';
+
 export interface ContactReply {
   id: string;
   channel: OutreachChannel;
@@ -508,6 +515,8 @@ export interface ContactReply {
   receivedAt: string;
   messageId: string | null;
   threadId: string | null;
+  classification: ReplyClassification | null;
+  classifiedAt: string | null;
 }
 
 export interface ContactActivity {

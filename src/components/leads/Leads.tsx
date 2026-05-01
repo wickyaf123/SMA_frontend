@@ -113,9 +113,31 @@ import {
   contactStatusColors, 
   sourceLabels 
 } from "@/types/api";
+import type { ReplyClassification as ReplyClassificationEnum } from "@/types/api";
 
 type SortField = "fullName" | "company" | "status" | "createdAt" | "googleRating";
 type SortDirection = "asc" | "desc";
+
+const replyClassificationStyles: Record<ReplyClassificationEnum, { label: string; className: string }> = {
+  BOOK_CALL:      { label: "Hot lead",        className: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:text-emerald-400" },
+  MORE_INFO:      { label: "Wants info",      className: "bg-blue-500/15 text-blue-600 border-blue-500/30 dark:text-blue-400" },
+  OBJECTION:      { label: "Objection",       className: "bg-amber-500/15 text-amber-600 border-amber-500/30 dark:text-amber-400" },
+  NOT_INTERESTED: { label: "Not interested",  className: "bg-rose-500/15 text-rose-600 border-rose-500/30 dark:text-rose-400" },
+  UNKNOWN:        { label: "Unclassified",    className: "bg-muted text-muted-foreground border-border" },
+};
+
+function ReplyClassificationBadge({ classification }: { classification: ReplyClassificationEnum | null }) {
+  if (!classification) return null;
+  const style = replyClassificationStyles[classification] ?? replyClassificationStyles.UNKNOWN;
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${style.className}`}
+      title={`Classified by AI as ${classification}`}
+    >
+      {style.label}
+    </span>
+  );
+}
 
 // Column visibility configuration
 type ColumnKey = "contact" | "company" | "validation" | "status" | "source" | "added" | "lastReply" | "campaign" | "dataQuality" | "lastContacted" | "googleRating" | "permitType" | "permitDate" | "permitCity" | "tags";
@@ -1896,6 +1918,7 @@ export const Leads = () => {
                               {reply.channel === 'EMAIL' && <Mail className="w-4 h-4 text-blue-500" />}
                               {reply.channel === 'SMS' && <Phone className="w-4 h-4 text-emerald-500" />}
                               <span className="text-sm font-medium">{reply.channel} Reply</span>
+                              <ReplyClassificationBadge classification={reply.classification} />
                             </div>
                             <span className="text-xs text-muted-foreground">
                               {new Date(reply.receivedAt).toLocaleString()}
